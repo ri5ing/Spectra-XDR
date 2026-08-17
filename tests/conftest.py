@@ -75,8 +75,9 @@ def clean_db_tables():
         engine = create_async_engine(db_url, echo=False)
         async def _clean():
             async with engine.begin() as conn:
-                await conn.execute(text("TRUNCATE TABLE events, incidents RESTART IDENTITY CASCADE"))
+                await conn.execute(text("TRUNCATE TABLE events, incidents, detection_rules, detection_matches, incident_evidence, iocs, mitre_techniques, event_iocs, event_mitre_mappings RESTART IDENTITY CASCADE"))
             await engine.dispose()
+
         asyncio.run(_clean())
     except Exception:
         pass

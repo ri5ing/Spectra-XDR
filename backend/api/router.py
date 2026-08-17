@@ -1,7 +1,7 @@
 """Main API Router aggregator for SPECTRA-XDR."""
 
 from fastapi import APIRouter
-from backend.api.routes import health, wazuh, events, database, incidents, intelligence
+from backend.api.routes import health, wazuh, events, database, incidents, intelligence, detections
 
 api_router = APIRouter()
 
@@ -22,4 +22,8 @@ api_router.include_router(incidents.router, prefix="/api/v1/incidents", tags=["I
 
 # Phase 3 Deterministic Security Intelligence Endpoints under /api/v1/intelligence
 api_router.include_router(intelligence.router, prefix="/api/v1", tags=["Deterministic Security Intelligence"])
+
+# Phase 4 Deterministic Detections & Correlation Endpoints under /api/v1/detections
+api_router.include_router(detections.router, prefix="/api/v1", tags=["Deterministic Detections & Correlation"])
+
 

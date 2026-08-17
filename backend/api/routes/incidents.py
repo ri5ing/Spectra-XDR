@@ -114,3 +114,24 @@ async def associate_event_with_incident(
     service = IncidentService(session)
     updated_event = await service.associate_event(incident_id, event_id)
     return updated_event
+
+
+@router.get("/{incident_id}/evidence", summary="List Auditable Evidence for Incident")
+async def get_incident_evidence(
+    incident_id: str,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Retrieves all auditable evidence records linked to an incident by UUID or human ID (INC-XXXXXX)."""
+    service = IncidentService(session)
+    incident = await service.get_incident(incident_id)
+    if not incident:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident '{incident_id}' not found"
+        )
+    from backend.services.detection_service import BackendDetectionService
+    det_service = BackendDetectionService(session)
+    evidence_list = await det_service.list_evidence_for_incident(incident.id)
+    from backend.api.schemas.evidence import IncidentEvidenceResponse
+    return [IncidentEvidenceResponse.model_validate(ev) for ev in evidence_list]
+

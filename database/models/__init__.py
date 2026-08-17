@@ -6,6 +6,9 @@ from database.models.ioc import IOC
 from database.models.mitre import MitreTechnique
 from database.models.event_ioc import EventIOC
 from database.models.event_mitre import EventMitreMapping
+from database.models.detection_rule import DetectionRule
+from database.models.detection_match import DetectionMatch
+from database.models.incident_evidence import IncidentEvidence
 
 __all__ = [
     "Event",
@@ -15,4 +18,7 @@ __all__ = [
     "MitreTechnique",
     "EventIOC",
     "EventMitreMapping",
+    "DetectionRule",
+    "DetectionMatch",
+    "IncidentEvidence",
 ]
