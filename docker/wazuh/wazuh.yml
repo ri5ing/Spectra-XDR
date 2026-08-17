@@ -1,0 +1,15 @@
+hosts:
+  - 1513629884013:
+      url: https://wazuh.manager
+      port: 55000
+      username: wazuh
+      password: wazuh
+      run_as: true
+
+admin: true
+logs.level: info
+checks.pattern: true
+checks.template: true
+checks.api: true
+checks.setup: true
+checks.metaFields: true
