@@ -42,6 +42,7 @@ frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fronten
 if os.path.exists(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
+    @app.get("/", include_in_schema=False)
     @app.get("/console", include_in_schema=False)
     async def serve_console():
         return FileResponse(os.path.join(frontend_dir, "index.html"))

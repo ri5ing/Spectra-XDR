@@ -1,125 +1,170 @@
 # SPECTRA-XDR
 
-SPECTRA-XDR is a hybrid, multi-agent Extended Detection and Response (XDR) architecture designed to combine real-time telemetry, threat intelligence, deterministic security controls, and autonomous AI-assisted reasoning for enterprise threat detection and incident response.
+## Swarm-Powered Predictive Event Correlation & Threat Response Architecture — Extended Detection and Response
+
+> **SPECTRA-XDR** is a hybrid, multi-agent, open-source XDR architecture built around **Wazuh**, **MITRE ATT&CK**, **LangGraph**, **Ollama**, and **Gemini API**. It operates across multiple endpoints on a local network, combining real-time security telemetry with autonomous AI-assisted correlation, investigation, threat reasoning, deterministic risk scoring, and controlled response execution.
 
 ---
 
 ## Current Phase
 
 ```text
-Phase 5 — Incident Investigation & Analyst Workflow Foundation
+Phase 6 — Swarm-Powered Multi-Agent Reasoning, Risk Engine & Controlled Response Architecture
 ```
-
-This repository is at **Phase 5**. It implements the deterministic incident investigation, aggregation, timeline construction, analyst annotation, and append-only audit trail layer for SPECTRA-XDR. Phase 5 operates 100% deterministically over persisted PostgreSQL events and enrichment records without using AI, LLMs, active response, or external threat intelligence network lookups.
 
 ---
 
-## Architecture Flow
+## ⚡ Single-Command Startup
+
+Start the **FULL SPECTRA-XDR & WAZUH PLATFORM** (Wazuh Manager, Wazuh Indexer, Wazuh Dashboard, PostgreSQL, Redis, Ollama, and SPECTRA-XDR Console) with **ONE SINGLE COMMAND**:
+
+### Docker Compose (Cross-Platform)
+```powershell
+docker compose up --build -d
+```
+
+### Windows Launcher
+```cmd
+.\start.bat
+```
+
+### Linux / macOS Launcher
+```bash
+chmod +x start.sh && ./start.sh
+```
+
+---
+
+## 🌐 Platform Service Endpoints
+
+| Component | URL / Endpoint | Credentials / Details |
+| :--- | :--- | :--- |
+| **Wazuh Web Dashboard** | `https://localhost:8443` | User: `admin` / Password: `admin` |
+| **SPECTRA-XDR Analyst Console** | `http://localhost:8000` | Real-time SOC Console Dashboard |
+| **SPECTRA-XDR API Documentation** | `http://localhost:8000/docs` | Interactive OpenAPI Swagger UI |
+| **Wazuh REST API Engine** | `https://localhost:55000` | JWT Authenticated Management API |
+| **Wazuh Agent Enrollment** | `1514 / 1515 TCP` | Endpoint Agent Registration & Telemetry |
+| **Ollama Local LLM Engine** | `http://localhost:11434` | Offline Local Model Processing |
+
+---
+
+## 🏗️ Architecture Flow
 
 ```text
-Wazuh (v4.14.7 Single-Node Docker)
-   ↓ (JWT Auth & Read-Only REST API)
-Wazuh API Client (WazuhClient)
-   ↓
-NormalizedEvent
-   ↓
-IOC Extraction & Normalization
-   ↓
-MITRE ATT&CK Mapping
-   ↓
-Persisted Enriched Event (PostgreSQL)
-   ↓
-Detection Engine & Correlation Matches (Phase 4)
-   ↓
-[Phase 5 Incident Investigation Layer]
-   ├── Detailed Incident Aggregation (Summary, Events, Detections, IOCs, MITRE)
-   ├── Deterministic Investigation Timeline (Events + Detections + Notes + Audits)
-   ├── Analyst Notes & Workflow State Management (OPEN, INVESTIGATING, CONTAINED, RESOLVED, CLOSED)
-   └── Immutable Append-Only Audit Log (incident_audit_log)
-   ↓
-Auditable Incidents & Evidence
+Telemetry → Detection → Correlation → Threat Context → Investigation
+          → Risk Scoring → Policy Decision → Response → Feedback
 ```
 
----
-
-## Development Principles & Security Guidelines
-
-### Core Principle
 ```text
-AI recommends.
-Deterministic security controls decide.
-Controlled response executes.
-```
+                               SPECTRA-XDR ARCHITECTURE
 
-### Deterministic Security Rules (Phase 5 Boundary)
-* **Zero AI / LLM Calls**: All incident detail assembly, event/detection/IOC/MITRE aggregation, timeline construction, status transition validation, and audit logging are 100% deterministic and reproducible. Zero AI agents, LLM calls, risk scoring heuristics, active response, or dynamic code execution (`eval()`).
-* **Zero External Intel Network Lookups**: Extracted IOCs and incidents are analyzed strictly against persisted PostgreSQL telemetry. Zero external WHOIS, VirusTotal, AbuseIPDB, or DNS network requests.
-* **Extracted IOC & Incident Safeguards**: Detections, IOCs, and incidents are treated strictly as data. The system will **NEVER** make network requests to extracted URLs, resolve extracted domains, scan extracted IPs, or execute extracted strings.
+  subgraph ENDPOINTS ["LOCAL NETWORK / ENDPOINT LAYER"]
+      Windows Endpoint | Linux Endpoint | Kali VM | macOS / Other VM
+  end
+
+  subgraph WAZUH ["WAZUH XDR & SOAR PLATFORM"]
+      Wazuh Agents ──> Wazuh Manager ──> Wazuh Indexer ──> Wazuh Dashboard (Port 8443)
+                            │               ▲
+                            ▼               │ (Active Response Commands)
+                        Wazuh API ──────────┤
+                            │               │
+  end                       ▼               │
+  subgraph SPECTRA ["SPECTRA AI CONTROL PLANE"]
+      LangGraph Supervisor Orchestrator
+         ├── 1. Detection Agent
+         ├── 2. MITRE ATT&CK Agent
+         ├── 3. Threat Intelligence Agent
+         ├── 4. Correlation Agent
+         ├── 5. Investigation Agent
+         ├── 6. Response Agent
+         └── 7. Reporting Agent
+                            │
+                            ▼
+               Deterministic Risk Engine (0-100)
+                            │
+                            ▼
+               Deterministic Policy Engine
+             (Human-in-the-Loop Approval Boundary)
+                            │
+                            ▼
+               Controlled Active Response Execution ──────┘
+  end
+```
 
 ---
 
-## API Endpoints Reference
+## 🤖 Multi-Agent AI Swarm & Hybrid Router
+
+SPECTRA-XDR routes reasoning requests dynamically across local and cloud LLMs while keeping deterministic controls in charge:
+
+1. **Hybrid Model Router (`models/router.py`)**:
+   - **Ollama Local (`ollama_local`)**: Fast, private, offline processing for sensitive endpoint telemetry.
+   - **Gemini API (`gemini_cloud`)**: High-reasoning cloud LLM for complex attack chain reconstruction.
+   - **Deterministic Fallback (`deterministic_fallback`)**: Zero-downtime rule-based reasoning engine if LLMs are offline.
+2. **Telemetry Sanitizer (`models/sanitizer.py`)**: Redacts passwords, bearer tokens, and private keys prior to cloud model inference.
+3. **Specialized Swarm Agents (`agents/`)**:
+   - **Detection Agent**: Alert triage, anomaly detection, false-positive evaluation.
+   - **MITRE ATT&CK Agent**: Maps behaviors to MITRE tactics, techniques, and mitigations.
+   - **Threat Intel Agent**: Evaluates extracted IOC reputation scores.
+   - **Correlation Agent**: Reconstructs multi-stage attack chains across endpoints over time.
+   - **Investigation Agent**: Read-only DFIR host investigation and timeline collection.
+   - **Response Agent**: Formulates recommended containment playbooks.
+   - **Reporting Agent**: Generates executive incident summary reports.
+
+---
+
+## 🛡️ Deterministic Risk Engine & Safety Policy
+
+AI agents generate recommendations; deterministic code decides and enforces security boundaries.
+
+### Deterministic Risk Scoring Formula (`risk/scoring.py`)
+$$\text{Risk Score} = w_1 S_{\text{severity}} + w_2 S_{\text{mitre}} + w_3 S_{\text{ioc}} + w_4 S_{\text{chain}} + w_5 S_{\text{asset}}$$
+
+| Risk Score | Threat Level | Default Policy |
+| :--- | :--- | :--- |
+| **0 – 29.9** | `LOW` | Alert & Monitor |
+| **30 – 59.9** | `MEDIUM` | Non-disruptive Monitoring |
+| **60 – 79.9** | `HIGH` | Requires Human Approval for Containment |
+| **80 – 100** | `CRITICAL` | Requires Human Approval for Disruptive Actions |
+
+### Strict Security Policy Rules (`risk/policies.py`)
+* **Zero Arbitrary Shell Execution**: No LLM `eval()` or unvalidated shell execution.
+* **Human-in-the-Loop Sign-off**: High-impact actions (`isolate_endpoint`, `block_ip`, `kill_process`, `quarantine_file`, `disable_user_account`) strictly require explicit analyst approval (`PENDING_APPROVAL`) before execution.
+* **Immutable Audit Trail**: All actions, approvals, and model thoughts are persisted to PostgreSQL audit logs.
+
+---
+
+## 🔌 API Endpoints Reference
 
 | Category | Method | Endpoint | Description |
 | :--- | :--- | :--- | :--- |
-| **System** | `GET` | `/` | SPECTRA-XDR root information |
-| **System** | `GET` | `/health` | SPECTRA-XDR application health check |
-| **Infrastructure** | `GET` | `/api/v1/database/health` | PostgreSQL read-only ping health check |
-| **Wazuh** | `GET` | `/api/v1/wazuh/health` | Wazuh API connectivity health check |
+| **System** | `GET` | `/` | Serves SPECTRA-XDR SOC Console Dashboard UI |
+| **System** | `GET` | `/health` | Application operational health check |
+| **Infrastructure** | `GET` | `/api/v1/database/health` | PostgreSQL read-only health ping |
+| **Wazuh** | `GET` | `/api/v1/wazuh/health` | Wazuh API connectivity check |
 | **Wazuh** | `GET` | `/api/v1/wazuh/agents` | Read-only inventory of registered Wazuh agents |
 | **Wazuh** | `GET` | `/api/v1/wazuh/alerts` | Read-only raw telemetry alerts from Wazuh |
 | **Events** | `GET` | `/api/v1/events` | Query persisted normalized security events |
-| **Events** | `POST` | `/api/v1/events` | Ingest a `NormalizedEvent` into PostgreSQL |
 | **Incidents** | `GET` | `/api/v1/incidents` | List security incidents with filters |
-| **Incidents** | `POST` | `/api/v1/incidents` | Create a new security incident (`INC-XXXXXX`) |
 | **Incidents** | `GET` | `/api/v1/incidents/{id}` | Retrieve incident details by UUID or `INC-XXXXXX` |
-| **Incidents** | `PATCH` | `/api/v1/incidents/{id}` | Update incident status/assignee with atomic audit log |
-| **Incidents** | `POST` | `/api/v1/incidents/{id}/events/{event_id}` | Associate an event with an incident |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/summary` | Get deterministic summary statistics for an incident |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/events` | Get associated persisted events with filters |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/detections` | Get detection matches contributing to an incident |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/iocs` | Get deduplicated extracted IOCs for an incident |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/mitre` | Get deduplicated MITRE ATT&CK techniques for an incident |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/timeline` | Get deterministic investigation timeline |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/evidence` | List all auditable evidence items for an incident |
-| **Investigation** | `POST` | `/api/v1/incidents/{id}/notes` | Add an analyst note to an incident |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/notes` | List analyst notes for an incident |
-| **Investigation** | `PATCH` | `/api/v1/incidents/{id}/notes/{note_id}` | Update an analyst note |
-| **Investigation** | `DELETE` | `/api/v1/incidents/{id}/notes/{note_id}` | Delete an analyst note |
-| **Investigation** | `GET` | `/api/v1/incidents/{id}/audit` | Get immutable append-only audit trail for an incident |
+| **Incidents** | `PATCH` | `/api/v1/incidents/{id}` | Update incident status/assignee |
+| **AI Swarm** | `POST` | `/api/v1/swarm/analyze/{id}` | Trigger LangGraph Multi-Agent reasoning on incident |
+| **AI Swarm** | `GET` | `/api/v1/swarm/runs/{id}` | Retrieve agent thoughts and attack chain execution |
+| **Risk Engine** | `GET` | `/api/v1/risk/assessments/{id}`| Retrieve deterministic multi-factor risk score breakdown |
+| **Risk Engine** | `POST` | `/api/v1/risk/recalculate/{id}`| Force recalculation of incident risk score |
+| **Response** | `GET` | `/api/v1/response/actions/{id}`| List recommended/executed response actions |
+| **Response** | `POST` | `/api/v1/response/actions/{id}/approve` | Analyst Human-in-the-Loop approval/rejection |
+| **Response** | `POST` | `/api/v1/response/actions/execute` | Trigger controlled Wazuh Active Response execution |
+| **AI Router** | `GET` | `/api/v1/ai/status` | Model router health (Ollama, Gemini API, Fallback) |
 
 ---
 
-## Validated Status Workflow
+## 🧪 Testing & Execution
 
-| Current Status | Allowed Target Transitions |
-| :--- | :--- |
-| `open` | `investigating`, `contained`, `resolved` |
-| `investigating` | `contained`, `resolved` |
-| `contained` | `investigating`, `resolved` |
-| `resolved` | `closed` |
-| `closed` | *(Terminal state)* |
+Run the complete automated pytest suite:
 
----
-
-## Migration & Execution Guide
-
-### 1. Database Migrations (Alembic)
-To apply database schema migrations (including `004_incident_investigation`):
 ```powershell
-alembic upgrade head
+.\.venv\Scripts\python -m pytest -v
 ```
 
-### 2. Automated Test Suite
-
-#### Offline Pytest Suite (Default CI mode)
-Runs unit tests offline without requiring a live Wazuh server:
-```powershell
-pytest -v
-```
-
-#### Optional Live Integration Test Suite
-To run tests against the live Wazuh 4.14.7 server:
-```cmd
-set WAZUH_INTEGRATION_TESTS=true&& pytest -v tests/test_wazuh_live_integration.py
-```
+All 61 unit and integration tests validate model router fallbacks, risk calculations, policy boundaries, response execution, and swarm state graph execution.

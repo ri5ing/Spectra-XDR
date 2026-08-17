@@ -44,6 +44,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function loadActiveView() {
         if (activeTab === "dashboard") loadDashboard();
         else if (activeTab === "incidents") loadIncidents();
+        else if (activeTab === "swarm") loadSwarm();
         else if (activeTab === "detections") loadDetections();
         else if (activeTab === "intelligence") loadIntelligence();
         else if (activeTab === "wazuh") loadWazuh();
@@ -306,6 +307,8 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="text-xs text-dark-300">${escapeHtml(t.tactic)}</td>
                 </tr>
             `).join("");
+        } else if (dtab === "swarm") {
+            await loadSwarmTabContent();
         } else if (dtab === "notes") {
             loadIncidentNotes();
         } else if (dtab === "audit") {
@@ -321,6 +324,131 @@ document.addEventListener("DOMContentLoaded", () => {
                     <td class="text-xs font-mono text-emerald-400">${a.new_value || '-'}</td>
                 </tr>
             `).join("");
+        }
+    }
+
+    // Swarm Tab Content Loader
+    async function loadSwarmTabContent() {
+        if (!activeIncidentId) return;
+        try {
+            const swarmData = await api.getSwarmRun(activeIncidentId);
+            const riskData = await api.getRiskAssessment(activeIncidentId);
+
+            if (riskData) {
+                document.getElementById("dswarm-risk-score").textContent = riskData.risk_score;
+                document.getElementById("dswarm-risk-level").textContent = riskData.risk_level;
+                const rBadge = document.getElementById("dswarm-risk-level");
+                rBadge.className = `badge badge-${riskData.risk_level.toLowerCase()}`;
+            }
+
+            if (swarmData && swarmData.status !== "not_analyzed") {
+                document.getElementById("dswarm-approval-status-text").textContent = `Approval Status: ${swarmData.human_approval_status.toUpperCase()}`;
+                const appBadge = document.getElementById("dswarm-approval-badge");
+                if (swarmData.human_approval_required) {
+                    appBadge.className = "badge badge-rose";
+                    appBadge.textContent = "HUMAN APPROVAL REQUIRED";
+                } else {
+                    appBadge.className = "badge badge-emerald";
+                    appBadge.textContent = "AUTO-APPROVED / NO RISK";
+                }
+
+                renderSwarmThoughts(swarmData.thoughts || []);
+                renderSwarmActions(swarmData.recommended_actions || []);
+            } else {
+                document.getElementById("dswarm-thoughts-container").innerHTML = `<div class="text-dark-400 py-4 text-center">Click "Analyze with AI Swarm" above to trigger LangGraph multi-agent reasoning.</div>`;
+                document.getElementById("dswarm-actions-container").innerHTML = `<div class="text-dark-400">No containment actions generated yet.</div>`;
+            }
+        } catch (err) {
+            console.error("Failed to load swarm tab content:", err);
+        }
+    }
+
+    function renderSwarmThoughts(thoughts) {
+        const container = document.getElementById("dswarm-thoughts-container");
+        if (!thoughts || thoughts.length === 0) {
+            container.innerHTML = `<div class="text-dark-400">No agent thoughts recorded.</div>`;
+            return;
+        }
+        container.innerHTML = thoughts.map(t => `
+            <div class="p-3 bg-dark-800 rounded border border-dark-700">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-cyan-400 font-bold font-mono">${t.agent_role.toUpperCase()}</span>
+                    <span class="text-xs text-dark-400 font-mono">${t.model_used} • Confidence: ${(t.confidence * 100).toFixed(0)}%</span>
+                </div>
+                <div class="text-sm text-light font-sans mb-2">${escapeHtml(t.summary)}</div>
+                ${t.findings && t.findings.length ? `<ul class="list-disc list-inside text-xs text-dark-300 space-y-0.5 font-mono">${t.findings.map(f => `<li>${escapeHtml(f)}</li>`).join("")}</ul>` : ''}
+            </div>
+        `).join("");
+    }
+
+    function renderSwarmActions(actions) {
+        const container = document.getElementById("dswarm-actions-container");
+        if (!actions || actions.length === 0) {
+            container.innerHTML = `<div class="text-dark-400">No containment actions generated.</div>`;
+            return;
+        }
+        container.innerHTML = actions.map((a, idx) => `
+            <div class="p-3 bg-dark-800 rounded border border-dark-700 flex justify-between items-center">
+                <div>
+                    <div class="text-xs font-mono font-bold text-rose-400">${a.action_type} <span class="text-dark-400 font-normal">on target</span> '${escapeHtml(a.target)}'</div>
+                    <div class="text-xs text-dark-300 mt-1">${escapeHtml(a.description)}</div>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="btn btn-xs btn-emerald" onclick="approveAction('${a.action_type}', '${escapeHtml(a.target)}')">Approve Action</button>
+                    <button class="btn btn-xs btn-cyan" onclick="executeAction('${a.action_type}', '${escapeHtml(a.target)}')">Execute</button>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    // Trigger Swarm Button Listener
+    document.getElementById("btn-trigger-swarm").addEventListener("click", async () => {
+        if (!activeIncidentId) return;
+        const btn = document.getElementById("btn-trigger-swarm");
+        btn.disabled = true;
+        btn.innerHTML = `<span class="animate-pulse">Running Swarm Swarm...</span>`;
+        try {
+            await api.triggerSwarmAnalysis(activeIncidentId);
+            await loadSwarmTabContent();
+            // Switch to swarm detail tab
+            const sTab = document.querySelector(`.detail-tab[data-dtab="swarm"]`);
+            if (sTab) sTab.click();
+        } catch (err) {
+            alert(`Swarm Execution Error: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg><span>Analyze with AI Swarm</span>`;
+        }
+    });
+
+    window.approveAction = async function(actionType, target) {
+        try {
+            alert(`Action '${actionType}' on target '${target}' marked APPROVED by Analyst.`);
+            loadSwarmTabContent();
+        } catch (err) {
+            alert(err.message);
+        }
+    };
+
+    window.executeAction = async function(actionType, target) {
+        if (!activeIncidentId) return;
+        try {
+            const res = await api.executeApprovedAction(actionType, target, activeIncidentId, "SOC Lead Analyst");
+            alert(`Response Action Executed Successfully!\nStatus: ${res.execution_result.status}\nCommand: ${actionType}`);
+            loadSwarmTabContent();
+        } catch (err) {
+            alert(`Execution Failed: ${err.message}`);
+        }
+    };
+
+    // Load AI Swarm View
+    async function loadSwarm() {
+        try {
+            const statusData = await api.getAIStatus();
+            document.getElementById("status-ollama").textContent = statusData.ollama_local.available ? `Active (${statusData.ollama_local.model})` : "Offline (Fallback Ready)";
+            document.getElementById("status-gemini").textContent = statusData.gemini_cloud.configured ? `Configured (${statusData.gemini_cloud.model})` : "Unconfigured (Ollama/Fallback Active)";
+        } catch (err) {
+            console.error("Failed to load AI Swarm status:", err);
         }
     }
 

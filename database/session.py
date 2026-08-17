@@ -59,6 +59,9 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
+get_db = get_db_session
+
+
 async def check_database_health(db_engine: AsyncEngine = engine) -> Dict[str, Any]:
     """Performs a read-only database ping query."""
     try:

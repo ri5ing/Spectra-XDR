@@ -1,6 +1,65 @@
-version: '3.8'
-
 services:
+  # 1. Wazuh Indexer (OpenSearch Data Store)
+  wazuh.indexer:
+    image: wazuh/wazuh-indexer:4.14.7
+    container_name: spectra-wazuh-indexer
+    ports:
+      - "9200:9200"
+    environment:
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "discovery.type=single-node"
+    volumes:
+      - wazuh_indexer_data:/var/lib/wazuh-indexer
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k -u admin:admin https://localhost:9200"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # 2. Wazuh Manager (Telemetry, Rules, Active Response SOAR Engine & REST API)
+  wazuh.manager:
+    image: wazuh/wazuh-manager:4.14.7
+    container_name: spectra-wazuh-manager
+    ports:
+      - "1514:1514/tcp"
+      - "1515:1515/tcp"
+      - "514:514/udp"
+      - "55000:55000/tcp"
+    environment:
+      - INDEXER_URL=https://wazuh.indexer:9200
+      - WAZUH_CLUSTER_ENABLED=false
+    volumes:
+      - wazuh_manager_data:/var/ossec/data
+      - ./docker/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
+    depends_on:
+      wazuh.indexer:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 3. Wazuh Dashboard (Official Fully Functional Web Console UI)
+  wazuh.dashboard:
+    image: wazuh/wazuh-dashboard:4.14.7
+    container_name: spectra-wazuh-dashboard
+    ports:
+      - "8443:5601"
+    environment:
+      - INDEXER_URL=https://wazuh.indexer:9200
+      - WAZUH_API_URL=https://wazuh.manager:55000
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=wazuh-password
+    depends_on:
+      - wazuh.manager
+    restart: unless-stopped
+
+  # 4. PostgreSQL Database Service
   postgres:
     image: postgres:15-alpine
     container_name: spectra-xdr-postgres
@@ -14,11 +73,35 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spectra -d spectra_xdr"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
+  # 5. Redis Caching & Queue Service
+  redis:
+    image: redis:7-alpine
+    container_name: spectra-xdr-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # 6. Ollama Local LLM Processing Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: spectra-xdr-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+  # 7. SPECTRA-XDR Backend & Analyst Console Service
   backend:
     build:
       context: .
@@ -29,19 +112,32 @@ services:
     environment:
       - APP_NAME=SPECTRA-XDR
       - APP_ENV=production
-      - DEBUG=False
+      - DEBUG=True
       - HOST=0.0.0.0
       - PORT=8000
       - DATABASE_URL=postgresql+psycopg://spectra:spectra@postgres:5432/spectra_xdr
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - WAZUH_API_URL=https://wazuh.manager:55000
+      - WAZUH_USERNAME=wazuh-wui
+      - WAZUH_PASSWORD=wazuh-password
+      - WAZUH_VERIFY_SSL=false
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
       retries: 3
     restart: unless-stopped
 
 volumes:
+  wazuh_indexer_data:
+  wazuh_manager_data:
   postgres_data:
+  ollama_data:

@@ -161,6 +161,55 @@ class ApiClient {
     async getWazuhAlerts(limit = 20) {
         return await this._request(`/wazuh/alerts?limit=${limit}`);
     }
+
+    // 7. Phase 6 AI Swarm, Risk, and Response APIs
+    async triggerSwarmAnalysis(incidentId) {
+        return await this._request(`/swarm/analyze/${incidentId}`, {
+            method: "POST"
+        });
+    }
+
+    async getSwarmRun(incidentId) {
+        return await this._request(`/swarm/runs/${incidentId}`);
+    }
+
+    async getRiskAssessment(incidentId) {
+        return await this._request(`/risk/assessments/${incidentId}`);
+    }
+
+    async recalculateRisk(incidentId) {
+        return await this._request(`/risk/recalculate/${incidentId}`, {
+            method: "POST"
+        });
+    }
+
+    async listResponseActions(incidentId) {
+        return await this._request(`/response/actions/${incidentId}`);
+    }
+
+    async approveResponseAction(actionId, approved = true, approvedBy = "Analyst") {
+        return await this._request(`/response/actions/${actionId}/approve`, {
+            method: "POST",
+            body: JSON.stringify({ approved, approved_by: approvedBy })
+        });
+    }
+
+    async executeApprovedAction(actionType, target, incidentId, approvedBy = "Analyst") {
+        return await this._request("/response/actions/execute", {
+            method: "POST",
+            body: JSON.stringify({
+                action_type: actionType,
+                target: target,
+                incident_id: incidentId,
+                approved_by: approvedBy
+            })
+        });
+    }
+
+    async getAIStatus() {
+        return await this._request("/ai/status");
+    }
 }
 
 const api = new ApiClient();
+
