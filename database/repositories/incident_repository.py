@@ -49,6 +49,15 @@ class IncidentRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_incident(self, identifier: str) -> Optional[Incident]:
+        """Retrieves an incident by UUID string or human-readable string (e.g. INC-000001)."""
+        try:
+            val_uuid = uuid.UUID(identifier)
+            return await self.get_incident_by_id(val_uuid)
+        except (ValueError, AttributeError):
+            return await self.get_incident_by_human_id(identifier)
+
+
     async def list_incidents(
         self,
         limit: int = 10,

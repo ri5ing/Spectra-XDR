@@ -50,6 +50,10 @@ class Incident(Base):
         DateTime(timezone=True), nullable=True
     )
 
+    assigned_to: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    resolution: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -61,6 +65,7 @@ class Incident(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         default=lambda: datetime.now(timezone.utc),
     )
+
 
     # Relationships
     events: Mapped[List["Event"]] = relationship(

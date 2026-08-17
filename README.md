@@ -7,10 +7,10 @@ SPECTRA-XDR is a hybrid, multi-agent Extended Detection and Response (XDR) archi
 ## Current Phase
 
 ```text
-Phase 4 — Deterministic Detection & Incident Correlation Foundation
+Phase 5 — Incident Investigation & Analyst Workflow Foundation
 ```
 
-This repository is at **Phase 4**. It implements the deterministic security detection engine, threshold correlation, evidence auditability, and incident correlation layer for SPECTRA-XDR. Phase 4 operates 100% deterministically over persisted PostgreSQL events and enrichment records without using AI, LLMs, active response, or network reputation lookups.
+This repository is at **Phase 5**. It implements the deterministic incident investigation, aggregation, timeline construction, analyst annotation, and append-only audit trail layer for SPECTRA-XDR. Phase 5 operates 100% deterministically over persisted PostgreSQL events and enrichment records without using AI, LLMs, active response, or external threat intelligence network lookups.
 
 ---
 
@@ -29,15 +29,15 @@ MITRE ATT&CK Mapping
    ↓
 Persisted Enriched Event (PostgreSQL)
    ↓
-[Phase 4 Pipeline]
-   ├── Detection Engine (SINGLE_EVENT, THRESHOLD, SAME_SOURCE_THRESHOLD, IOC_MATCH, MITRE_TECHNIQUE_MATCH, COMBINATION)
-   ├── Built-in Rules Catalog (DET-001 through DET-005)
-   ├── Incident Correlation & Severity Precedence (critical > high > medium > low)
-   └── Auditable Incident Evidence Logging (detection_matches, incident_evidence)
+Detection Engine & Correlation Matches (Phase 4)
+   ↓
+[Phase 5 Incident Investigation Layer]
+   ├── Detailed Incident Aggregation (Summary, Events, Detections, IOCs, MITRE)
+   ├── Deterministic Investigation Timeline (Events + Detections + Notes + Audits)
+   ├── Analyst Notes & Workflow State Management (OPEN, INVESTIGATING, CONTAINED, RESOLVED, CLOSED)
+   └── Immutable Append-Only Audit Log (incident_audit_log)
    ↓
 Auditable Incidents & Evidence
-   ↓
-Future SPECTRA AI Control Plane (Phase 5)
 ```
 
 ---
@@ -51,10 +51,10 @@ Deterministic security controls decide.
 Controlled response executes.
 ```
 
-### Deterministic Security Rules (Phase 4 Boundary)
-* **Zero AI / LLM Calls**: All detection rule evaluation, threshold correlation, severity assignment, and evidence logging logic is 100% deterministic and reproducible. Zero AI agents, LLM calls, risk scoring heuristics, active response, or dynamic code execution (`eval()`).
-* **Phase 5 Scope Note**: Phase 5 will introduce AI-assisted security analysis as a separate reasoning layer consuming Phase 4 evidence.
-* **Extracted IOC & Detection Safeguards**: Extracted IOCs (IPs, domains, URLs) and detections are treated strictly as data. The system will **NEVER** make network requests to extracted URLs, resolve extracted domains, scan extracted IPs, or execute extracted strings.
+### Deterministic Security Rules (Phase 5 Boundary)
+* **Zero AI / LLM Calls**: All incident detail assembly, event/detection/IOC/MITRE aggregation, timeline construction, status transition validation, and audit logging are 100% deterministic and reproducible. Zero AI agents, LLM calls, risk scoring heuristics, active response, or dynamic code execution (`eval()`).
+* **Zero External Intel Network Lookups**: Extracted IOCs and incidents are analyzed strictly against persisted PostgreSQL telemetry. Zero external WHOIS, VirusTotal, AbuseIPDB, or DNS network requests.
+* **Extracted IOC & Incident Safeguards**: Detections, IOCs, and incidents are treated strictly as data. The system will **NEVER** make network requests to extracted URLs, resolve extracted domains, scan extracted IPs, or execute extracted strings.
 
 ---
 
@@ -73,39 +73,39 @@ Controlled response executes.
 | **Incidents** | `GET` | `/api/v1/incidents` | List security incidents with filters |
 | **Incidents** | `POST` | `/api/v1/incidents` | Create a new security incident (`INC-XXXXXX`) |
 | **Incidents** | `GET` | `/api/v1/incidents/{id}` | Retrieve incident details by UUID or `INC-XXXXXX` |
-| **Incidents** | `PATCH` | `/api/v1/incidents/{id}` | Update incident status or severity |
+| **Incidents** | `PATCH` | `/api/v1/incidents/{id}` | Update incident status/assignee with atomic audit log |
 | **Incidents** | `POST` | `/api/v1/incidents/{id}/events/{event_id}` | Associate an event with an incident |
-| **Incidents** | `GET` | `/api/v1/incidents/{id}/evidence` | List all auditable evidence items for an incident |
-| **Intelligence** | `GET` | `/api/v1/intelligence/iocs` | List extracted and normalized IOC records |
-| **Intelligence** | `GET` | `/api/v1/intelligence/iocs/{ioc_id}` | Get detailed IOC record by UUID |
-| **Intelligence** | `GET` | `/api/v1/intelligence/mitre` | List MITRE ATT&CK catalog techniques |
-| **Intelligence** | `GET` | `/api/v1/intelligence/mitre/{technique_id}` | Get MITRE technique details by ID (e.g. `T1059`) |
-| **Intelligence** | `GET` | `/api/v1/intelligence/events/{event_id}` | Get enriched intelligence for a persisted event |
-| **Intelligence** | `POST` | `/api/v1/intelligence/events/{event_id}/enrich` | Explicitly trigger deterministic event enrichment |
-| **Detections** | `GET` | `/api/v1/detections/rules` | List deterministic detection rules |
-| **Detections** | `GET` | `/api/v1/detections/rules/{rule_id}` | Get detection rule details by rule_id (e.g. `DET-001`) |
-| **Detections** | `POST` | `/api/v1/detections/run` | Execute deterministic detection engine over events |
-| **Detections** | `GET` | `/api/v1/detections/matches` | List generated detection matches |
-| **Detections** | `GET` | `/api/v1/detections/matches/{match_id}` | Get detection match details by UUID |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/summary` | Get deterministic summary statistics for an incident |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/events` | Get associated persisted events with filters |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/detections` | Get detection matches contributing to an incident |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/iocs` | Get deduplicated extracted IOCs for an incident |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/mitre` | Get deduplicated MITRE ATT&CK techniques for an incident |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/timeline` | Get deterministic investigation timeline |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/evidence` | List all auditable evidence items for an incident |
+| **Investigation** | `POST` | `/api/v1/incidents/{id}/notes` | Add an analyst note to an incident |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/notes` | List analyst notes for an incident |
+| **Investigation** | `PATCH` | `/api/v1/incidents/{id}/notes/{note_id}` | Update an analyst note |
+| **Investigation** | `DELETE` | `/api/v1/incidents/{id}/notes/{note_id}` | Delete an analyst note |
+| **Investigation** | `GET` | `/api/v1/incidents/{id}/audit` | Get immutable append-only audit trail for an incident |
 
 ---
 
-## Built-In Detection Rules Catalog
+## Validated Status Workflow
 
-| Rule ID | Rule Name | Condition Type | Severity | MITRE Technique | Description |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `DET-001` | Repeated Authentication Failures | `SAME_SOURCE_THRESHOLD` (5 events / 5 min) | `medium` | `T1110` | Triggers when 5 or more authentication failures occur on same agent within 5 minutes. |
-| `DET-002` | Brute Force Threshold Violation | `THRESHOLD` (10 events / 10 min) | `high` | `T1110` | Triggers when 10 or more failed login attempts occur within 10 minutes. |
-| `DET-003` | PowerShell Script Execution | `MITRE_TECHNIQUE_MATCH` (`T1059.001`) | `medium` | `T1059.001` | Triggers when telemetry is mapped to MITRE T1059.001. |
-| `DET-004` | OS Credential Dumping Activity | `MITRE_TECHNIQUE_MATCH` (`T1003`) | `high` | `T1003` | Triggers when telemetry matches MITRE T1003. |
-| `DET-005` | Privilege Escalation Exploitation | `MITRE_TECHNIQUE_MATCH` (`T1068`) | `high` | `T1068` | Triggers when telemetry matches MITRE T1068. |
+| Current Status | Allowed Target Transitions |
+| :--- | :--- |
+| `open` | `investigating`, `contained`, `resolved` |
+| `investigating` | `contained`, `resolved` |
+| `contained` | `investigating`, `resolved` |
+| `resolved` | `closed` |
+| `closed` | *(Terminal state)* |
 
 ---
 
 ## Migration & Execution Guide
 
 ### 1. Database Migrations (Alembic)
-To apply database schema migrations (including `003_detection_and_correlation`):
+To apply database schema migrations (including `004_incident_investigation`):
 ```powershell
 alembic upgrade head
 ```

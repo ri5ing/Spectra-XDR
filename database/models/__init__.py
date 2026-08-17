@@ -9,6 +9,8 @@ from database.models.event_mitre import EventMitreMapping
 from database.models.detection_rule import DetectionRule
 from database.models.detection_match import DetectionMatch
 from database.models.incident_evidence import IncidentEvidence
+from database.models.incident_note import IncidentNote
+from database.models.incident_audit import IncidentAuditLog
 
 __all__ = [
     "Event",
@@ -21,4 +23,6 @@ __all__ = [
     "DetectionRule",
     "DetectionMatch",
     "IncidentEvidence",
+    "IncidentNote",
+    "IncidentAuditLog",
 ]
