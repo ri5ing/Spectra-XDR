@@ -1,8 +1,10 @@
 """Main FastAPI Application Entrypoint for SPECTRA-XDR."""
 
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -35,6 +37,15 @@ app = FastAPI(
 # Register API Router
 app.include_router(api_router)
 
+# Static Files Mounting for Frontend Console
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+    @app.get("/console", include_in_schema=False)
+    async def serve_console():
+        return FileResponse(os.path.join(frontend_dir, "index.html"))
+
 
 # Global Exception Handlers
 @app.exception_handler(StarletteHTTPException)
@@ -49,7 +60,6 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
             "detail": exc.detail
         }
     )
-
 
 
 @app.exception_handler(Exception)

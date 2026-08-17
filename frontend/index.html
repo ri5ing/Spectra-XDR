@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPECTRA-XDR — SOC Analyst Console</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="bg-dark text-light font-sans antialiased">
+    <!-- Top Navigation Header -->
+    <header class="app-header glass-nav border-b border-dark-700 sticky top-0 z-50 px-6 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+            <div class="brand-logo flex items-center space-x-2">
+                <span class="text-xl font-bold tracking-wider text-gradient">SPECTRA-XDR</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-cyan-900/60 text-cyan-400 font-mono border border-cyan-700/50">v1.0</span>
+            </div>
+            <nav class="hidden md:flex space-x-1 pl-6 border-l border-dark-700">
+                <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+                <button class="nav-tab" data-tab="incidents">Incidents</button>
+                <button class="nav-tab" data-tab="detections">Detections</button>
+                <button class="nav-tab" data-tab="intelligence">Intelligence</button>
+                <button class="nav-tab" data-tab="wazuh">Wazuh</button>
+            </nav>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div id="wazuh-status-badge" class="flex items-center space-x-2 text-xs px-3 py-1.5 rounded-full bg-dark-800 border border-dark-700">
+                <span class="status-dot bg-emerald-500"></span>
+                <span class="font-mono text-emerald-400" id="wazuh-status-text">Wazuh Connected</span>
+            </div>
+            <button id="btn-refresh" class="btn btn-sm btn-dark flex items-center space-x-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="container mx-auto px-6 py-6 max-w-7xl min-h-[calc(100vh-65px)]">
+
+        <!-- 1. DASHBOARD VIEW -->
+        <section id="view-dashboard" class="view-panel">
+            <!-- Metric Cards Row -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="kpi-card">
+                    <div class="kpi-title">TOTAL INCIDENTS</div>
+                    <div class="kpi-value text-indigo-400" id="kpi-total-incidents">0</div>
+                    <div class="kpi-sub" id="kpi-incidents-sub">0 Open | 0 Investigating</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">HIGH / CRITICAL</div>
+                    <div class="kpi-value text-rose-400" id="kpi-critical-incidents">0</div>
+                    <div class="kpi-sub" id="kpi-critical-sub">0 Critical | 0 High</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">DETECTION MATCHES</div>
+                    <div class="kpi-value text-cyan-400" id="kpi-detection-matches">0</div>
+                    <div class="kpi-sub">Rule Correlation Matches</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">EXTRACTED IOCs & MITRE</div>
+                    <div class="kpi-value text-amber-400" id="kpi-intel-count">0</div>
+                    <div class="kpi-sub" id="kpi-intel-sub">0 IOCs | 0 ATT&CK Techniques</div>
+                </div>
+            </div>
+
+            <!-- Dashboard Details Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Recent Incidents Panel -->
+                <div class="lg:col-span-2 card">
+                    <div class="card-header flex justify-between items-center">
+                        <h3 class="card-title">Recent Security Incidents</h3>
+                        <button class="btn btn-xs btn-outline" data-action="goto-incidents">View All</button>
+                    </div>
+                    <div class="card-body p-0 overflow-x-auto">
+                        <table class="data-table" id="table-recent-incidents">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Severity</th>
+                                    <th>Status</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="5" class="text-center py-6 text-dark-400">Loading recent incidents...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Severity Distribution Panel -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Severity Breakdown</h3>
+                    </div>
+                    <div class="card-body space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-mono"><span>CRITICAL</span><span id="cnt-sev-critical">0</span></div>
+                            <div class="progress-bar"><div class="progress-fill bg-rose-500" id="bar-sev-critical" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-mono"><span>HIGH</span><span id="cnt-sev-high">0</span></div>
+                            <div class="progress-bar"><div class="progress-fill bg-amber-500" id="bar-sev-high" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-mono"><span>MEDIUM</span><span id="cnt-sev-medium">0</span></div>
+                            <div class="progress-bar"><div class="progress-fill bg-blue-500" id="bar-sev-medium" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1 font-mono"><span>LOW</span><span id="cnt-sev-low">0</span></div>
+                            <div class="progress-bar"><div class="progress-fill bg-slate-500" id="bar-sev-low" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. INCIDENTS VIEW -->
+        <section id="view-incidents" class="view-panel hidden">
+            <div class="card mb-6">
+                <div class="card-body p-4 flex flex-wrap gap-3 items-center justify-between">
+                    <div class="flex flex-wrap gap-3 items-center flex-1">
+                        <div class="relative min-w-[240px]">
+                            <input type="text" id="filter-search" class="input input-sm w-full pl-8" placeholder="Search title or ID...">
+                            <svg class="w-4 h-4 absolute left-2.5 top-2.5 text-dark-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                        <select id="filter-severity" class="select select-sm">
+                            <option value="">All Severities</option>
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                        <select id="filter-status" class="select select-sm">
+                            <option value="">All Statuses</option>
+                            <option value="open">Open</option>
+                            <option value="investigating">Investigating</option>
+                            <option value="contained">Contained</option>
+                            <option value="resolved">Resolved</option>
+                            <option value="closed">Closed</option>
+                        </select>
+                        <button id="btn-clear-filters" class="btn btn-xs btn-dark">Reset</button>
+                    </div>
+                    <div class="text-xs text-dark-400 font-mono" id="incidents-count-label">Showing 0 incidents</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0 overflow-x-auto">
+                    <table class="data-table" id="table-incidents">
+                        <thead>
+                            <tr>
+                                <th>Incident ID</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Title</th>
+                                <th>Assigned To</th>
+                                <th>Updated</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" class="text-center py-8 text-dark-400">Loading incidents...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. DETECTIONS VIEW -->
+        <section id="view-detections" class="view-panel hidden">
+            <div class="space-y-6">
+                <!-- Detection Rules Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Deterministic Detection Rules Catalog</h3>
+                    </div>
+                    <div class="card-body p-0 overflow-x-auto">
+                        <table class="data-table" id="table-detection-rules">
+                            <thead>
+                                <tr>
+                                    <th>Rule ID</th>
+                                    <th>Name</th>
+                                    <th>Condition Type</th>
+                                    <th>Severity</th>
+                                    <th>ATT&CK</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="6" class="text-center py-6 text-dark-400">Loading detection rules...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Detection Matches Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Generated Detection Matches</h3>
+                    </div>
+                    <div class="card-body p-0 overflow-x-auto">
+                        <table class="data-table" id="table-detection-matches">
+                            <thead>
+                                <tr>
+                                    <th>Match ID</th>
+                                    <th>Rule</th>
+                                    <th>Incident ID</th>
+                                    <th>Matched Time</th>
+                                    <th>Event Count</th>
+                                    <th>Match Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="6" class="text-center py-6 text-dark-400">Loading detection matches...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. INTELLIGENCE VIEW -->
+        <section id="view-intelligence" class="view-panel hidden">
+            <div class="card mb-6">
+                <div class="card-header border-b border-dark-700 flex space-x-4">
+                    <button class="sub-tab active" data-subtab="iocs">Extracted IOC Inventory</button>
+                    <button class="sub-tab" data-subtab="mitre">MITRE ATT&CK Catalog</button>
+                </div>
+                <div id="subpanel-iocs" class="card-body p-0 overflow-x-auto">
+                    <table class="data-table" id="table-iocs">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Original Value</th>
+                                <th>Normalized Value</th>
+                                <th>Confidence</th>
+                                <th>First Seen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="5" class="text-center py-6 text-dark-400">Loading extracted IOCs...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="subpanel-mitre" class="card-body p-0 overflow-x-auto hidden">
+                    <table class="data-table" id="table-mitre">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Technique Name</th>
+                                <th>Tactic</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="4" class="text-center py-6 text-dark-400">Loading MITRE catalog...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. WAZUH VIEW -->
+        <section id="view-wazuh" class="view-panel hidden">
+            <div class="space-y-6">
+                <!-- Wazuh Health Card -->
+                <div class="card">
+                    <div class="card-header flex justify-between items-center">
+                        <h3 class="card-title">Wazuh Server & Operational Status</h3>
+                        <span class="badge badge-emerald" id="wazuh-card-status">Read-Only Connected</span>
+                    </div>
+                    <div class="card-body grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-3 rounded bg-dark-800 border border-dark-700">
+                            <div class="text-xs text-dark-400">API ENDPOINT</div>
+                            <div class="font-mono text-sm text-cyan-400">https://localhost:55000</div>
+                        </div>
+                        <div class="p-3 rounded bg-dark-800 border border-dark-700">
+                            <div class="text-xs text-dark-400">AUTHENTICATION</div>
+                            <div class="font-mono text-sm text-emerald-400">JWT Authenticated</div>
+                        </div>
+                        <div class="p-3 rounded bg-dark-800 border border-dark-700">
+                            <div class="text-xs text-dark-400">SECURITY SCOPE</div>
+                            <div class="font-mono text-sm text-indigo-400">Strict Read-Only</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wazuh Agent Inventory -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Registered Wazuh Agent Inventory</h3>
+                    </div>
+                    <div class="card-body p-0 overflow-x-auto">
+                        <table class="data-table" id="table-wazuh-agents">
+                            <thead>
+                                <tr>
+                                    <th>Agent ID</th>
+                                    <th>Name</th>
+                                    <th>IP Address</th>
+                                    <th>Status</th>
+                                    <th>OS Version</th>
+                                    <th>Keepalive</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="6" class="text-center py-6 text-dark-400">Loading Wazuh agent inventory...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- INCIDENT DETAIL MODAL / DRAWER -->
+    <div id="modal-incident" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <div class="flex items-center space-x-3">
+                    <span class="font-mono text-lg font-bold text-cyan-400" id="detail-inc-id">INC-XXXXXX</span>
+                    <span class="badge" id="detail-severity-badge">MEDIUM</span>
+                    <span class="badge badge-outline" id="detail-status-badge">OPEN</span>
+                </div>
+                <button id="btn-close-modal" class="text-dark-400 hover:text-light">&times;</button>
+            </div>
+            
+            <div class="p-6 border-b border-dark-700 bg-dark-900/50">
+                <h2 class="text-xl font-bold text-light mb-2" id="detail-title">Incident Title</h2>
+                <p class="text-sm text-dark-300 font-mono" id="detail-description">Incident description narrative...</p>
+            </div>
+
+            <!-- Workflow Control Bar -->
+            <div class="px-6 py-3 bg-dark-800 border-b border-dark-700 flex flex-wrap gap-4 items-center justify-between text-xs">
+                <div class="flex items-center space-x-2">
+                    <span class="text-dark-400">Update Status:</span>
+                    <select id="action-update-status" class="select select-xs">
+                        <option value="open">Open</option>
+                        <option value="investigating">Investigating</option>
+                        <option value="contained">Contained</option>
+                        <option value="resolved">Resolved</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-dark-400">Assignee:</span>
+                    <input type="text" id="action-assignee" class="input input-xs w-32" placeholder="Analyst name">
+                    <button id="btn-save-assignee" class="btn btn-xs btn-cyan">Assign</button>
+                </div>
+            </div>
+
+            <!-- Modal Internal Navigation Tabs -->
+            <div class="px-6 border-b border-dark-700 flex space-x-4 bg-dark-900">
+                <button class="detail-tab active" data-dtab="summary">Summary</button>
+                <button class="detail-tab" data-dtab="timeline">Timeline</button>
+                <button class="detail-tab" data-dtab="events">Events</button>
+                <button class="detail-tab" data-dtab="detections">Detections</button>
+                <button class="detail-tab" data-dtab="iocs">IOCs</button>
+                <button class="detail-tab" data-dtab="mitre">MITRE</button>
+                <button class="detail-tab" data-dtab="notes">Analyst Notes</button>
+                <button class="detail-tab" data-dtab="audit">Audit Log</button>
+            </div>
+
+            <!-- Modal Content Panels -->
+            <div class="p-6 max-h-[55vh] overflow-y-auto">
+                <div id="dpanel-summary" class="detail-panel space-y-4">
+                    <div class="grid grid-cols-4 gap-3">
+                        <div class="p-3 bg-dark-800 rounded border border-dark-700 text-center"><div class="text-xs text-dark-400">Events</div><div class="text-lg font-bold font-mono text-cyan-400" id="dsum-events">0</div></div>
+                        <div class="p-3 bg-dark-800 rounded border border-dark-700 text-center"><div class="text-xs text-dark-400">Detections</div><div class="text-lg font-bold font-mono text-indigo-400" id="dsum-detections">0</div></div>
+                        <div class="p-3 bg-dark-800 rounded border border-dark-700 text-center"><div class="text-xs text-dark-400">IOCs</div><div class="text-lg font-bold font-mono text-amber-400" id="dsum-iocs">0</div></div>
+                        <div class="p-3 bg-dark-800 rounded border border-dark-700 text-center"><div class="text-xs text-dark-400">ATT&CK</div><div class="text-lg font-bold font-mono text-emerald-400" id="dsum-mitre">0</div></div>
+                    </div>
+                </div>
+
+                <div id="dpanel-timeline" class="detail-panel hidden">
+                    <div id="timeline-container" class="timeline-list space-y-4"></div>
+                </div>
+
+                <div id="dpanel-events" class="detail-panel hidden overflow-x-auto">
+                    <table class="data-table" id="table-detail-events">
+                        <thead><tr><th>Time</th><th>Source</th><th>Agent</th><th>Rule ID</th><th>Description</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="dpanel-detections" class="detail-panel hidden overflow-x-auto">
+                    <table class="data-table" id="table-detail-detections">
+                        <thead><tr><th>Rule ID</th><th>Type</th><th>Matched Time</th><th>Match Reason</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="dpanel-iocs" class="detail-panel hidden overflow-x-auto">
+                    <table class="data-table" id="table-detail-iocs">
+                        <thead><tr><th>Type</th><th>Value</th><th>Normalized</th><th>Confidence</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="dpanel-mitre" class="detail-panel hidden overflow-x-auto">
+                    <table class="data-table" id="table-detail-mitre">
+                        <thead><tr><th>ID</th><th>Technique Name</th><th>Tactic</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div id="dpanel-notes" class="detail-panel hidden space-y-4">
+                    <div class="flex gap-2">
+                        <input type="text" id="input-new-note" class="input input-sm flex-1" placeholder="Type analyst comment note...">
+                        <button id="btn-add-note" class="btn btn-sm btn-cyan">Add Note</button>
+                    </div>
+                    <div id="notes-container" class="space-y-3"></div>
+                </div>
+
+                <div id="dpanel-audit" class="detail-panel hidden overflow-x-auto">
+                    <table class="data-table" id="table-detail-audit">
+                        <thead><tr><th>Time</th><th>Actor</th><th>Action</th><th>Field</th><th>Old Value</th><th>New Value</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Files -->
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
