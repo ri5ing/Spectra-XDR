@@ -7,34 +7,32 @@ SPECTRA-XDR is a hybrid, multi-agent Extended Detection and Response (XDR) archi
 ## Current Phase
 
 ```text
-Phase 1 — Wazuh Foundation
+Phase 3 — Deterministic Security Intelligence Foundation
 ```
 
-This repository is currently at **Phase 1**. It establishes a reliable, read-only telemetry integration between the SPECTRA-XDR FastAPI backend and Wazuh Manager (v4.x) via the official Wazuh API, featuring an asynchronous client, an event normalization engine, REST API routes, and a complete mocked unit testing suite.
+This repository is at **Phase 3**. It implements the deterministic security intelligence foundation for SPECTRA-XDR, providing offline IOC extraction, canonical indicator normalization, versioned MITRE ATT&CK technique mapping, and event enrichment (`enrichment_version = "1.0.0"`).
 
 ---
 
 ## Architecture Flow
 
 ```text
-Windows Endpoint ─┐
-Linux Endpoint ───┼──> Wazuh Agents
-Kali Endpoint ────┘
-                       │
-                       ▼
-                 Wazuh Manager
-                       │
-              ┌────────┴────────┐
-              ▼                 ▼
-        Wazuh Indexer       Wazuh API
-                                │
-                                ▼
-                         SPECTRA FastAPI
-                                │
-                         Event Normalizer
-                                │
-                                ▼
-                         Normalized Event
+Wazuh (v4.14.7 Single-Node Docker)
+   ↓ (JWT Auth & Read-Only REST API)
+Wazuh API Client (WazuhClient)
+   ↓
+NormalizedEvent
+   ↓
+Event Service ───> PostgreSQL
+   ↓
+[Phase 3 Pipeline]
+   ├── IOC Extraction (IPv4, IPv6, Domain, URL, MD5, SHA1, SHA256, Username, File Path)
+   ├── IOC Normalization (Canonical representation preserving original evidence)
+   └── MITRE ATT&CK Mapping (Local versioned catalog matching rule IDs/groups)
+   ↓
+EnrichedEventData (Version 1.0.0) ───> PostgreSQL (iocs, mitre_techniques, event_iocs, event_mitre_mappings)
+   ↓
+Future SPECTRA AI Control Plane (Phase 4)
 ```
 
 ---
@@ -48,77 +46,57 @@ Deterministic security controls decide.
 Controlled response executes.
 ```
 
-### Phase 1 Read-Only Security Model
-* **Strictly Read-Only Telemetry**: All Wazuh communication is limited to HTTP `GET` queries (plus `POST` for authentication tokens).
-* **No Active Response**: No endpoint isolation, process termination, file quarantine, IP blocking, or agent command execution functionality is implemented in this phase.
-* **Credential Protection**: Passwords, API tokens, and authorization headers are never logged or exposed in client responses.
-* **TLS Security**: SSL certificate verification (`WAZUH_VERIFY_SSL=true`) is enabled by default.
+### Deterministic Security Rules (Phase 3 Boundary)
+* **Zero AI / LLM Calls**: All extraction, normalization, and MITRE mapping logic is 100% deterministic (regular expressions, structured JSON field parsing, static catalog lookup). Zero AI agents, LLM calls, risk scoring, or automated incident creation.
+* **Extracted IOC Security Safeguards**: Extracted IOCs (IPs, domains, URLs) are treated strictly as data. The system will **NEVER** make network requests to extracted URLs, resolve extracted domains, scan extracted IPs, or execute extracted strings.
+* **Telemetry & Persisted Event Separation**: `/api/v1/wazuh/alerts` remains live/raw Wazuh telemetry, while `/api/v1/events` remains persisted SPECTRA events in PostgreSQL.
 
 ---
 
-## Phase 1 — Wazuh Foundation Details
+## API Endpoints Reference
 
-### Wazuh's Role in SPECTRA-XDR
-Wazuh acts as the primary endpoint telemetry and alert ingestion engine. SPECTRA-XDR ingests raw Wazuh alerts, standardizes them into `NormalizedEvent` schemas for AI agents, and preserves raw event payloads as unalterable evidence.
-
-### Application Health vs. Wazuh Integration Health
-* **SPECTRA App Health** (`GET /health`): Independent application status check verifying SPECTRA backend readiness.
-* **Wazuh Integration Health** (`GET /api/v1/wazuh/health`): Dedicated read-only connectivity check against the external Wazuh API Manager.
-
-### Available Endpoints
-| HTTP Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/` | SPECTRA-XDR root information |
-| `GET` | `/health` | SPECTRA-XDR application health check |
-| `GET` | `/api/v1/wazuh/health` | Wazuh API connectivity & authentication status |
-| `GET` | `/api/v1/wazuh/agents` | Read-only inventory of registered Wazuh agents |
-| `GET` | `/api/v1/wazuh/alerts` | Read-only raw telemetry alerts from Wazuh |
-| `GET` | `/api/v1/events` | Standardized `NormalizedEvent` telemetry feed |
-
----
-
-## Environment Configuration
-
-Configure `.env` using `.env.example`:
-```env
-# Application Settings
-APP_NAME=SPECTRA-XDR
-APP_ENV=development
-DEBUG=True
-HOST=0.0.0.0
-PORT=8000
-
-# Wazuh Integration Settings
-WAZUH_API_URL=https://localhost:55000
-WAZUH_USERNAME=wazuh-wui
-WAZUH_PASSWORD=wazuh-password
-WAZUH_VERIFY_SSL=true
-WAZUH_TIMEOUT=10
-```
+| Category | Method | Endpoint | Description |
+| :--- | :--- | :--- | :--- |
+| **System** | `GET` | `/` | SPECTRA-XDR root information |
+| **System** | `GET` | `/health` | SPECTRA-XDR application health check |
+| **Infrastructure** | `GET` | `/api/v1/database/health` | PostgreSQL read-only ping health check |
+| **Wazuh** | `GET` | `/api/v1/wazuh/health` | Wazuh API connectivity health check |
+| **Wazuh** | `GET` | `/api/v1/wazuh/agents` | Read-only inventory of registered Wazuh agents |
+| **Wazuh** | `GET` | `/api/v1/wazuh/alerts` | Read-only raw telemetry alerts from Wazuh |
+| **Events** | `GET` | `/api/v1/events` | Query persisted normalized security events |
+| **Events** | `POST` | `/api/v1/events` | Ingest a `NormalizedEvent` into PostgreSQL |
+| **Incidents** | `GET` | `/api/v1/incidents` | List security incidents with filters |
+| **Incidents** | `POST` | `/api/v1/incidents` | Create a new security incident (`INC-XXXXXX`) |
+| **Incidents** | `GET` | `/api/v1/incidents/{id}` | Retrieve incident details by UUID or `INC-XXXXXX` |
+| **Incidents** | `PATCH` | `/api/v1/incidents/{id}` | Update incident status or severity |
+| **Incidents** | `POST` | `/api/v1/incidents/{id}/events/{event_id}` | Associate an event with an incident |
+| **Intelligence** | `GET` | `/api/v1/intelligence/iocs` | List extracted and normalized IOC records |
+| **Intelligence** | `GET` | `/api/v1/intelligence/iocs/{ioc_id}` | Get detailed IOC record by UUID |
+| **Intelligence** | `GET` | `/api/v1/intelligence/mitre` | List MITRE ATT&CK catalog techniques |
+| **Intelligence** | `GET` | `/api/v1/intelligence/mitre/{technique_id}` | Get MITRE technique details by ID (e.g. `T1059`) |
+| **Intelligence** | `GET` | `/api/v1/intelligence/events/{event_id}` | Get enriched intelligence for a persisted event |
+| **Intelligence** | `POST` | `/api/v1/intelligence/events/{event_id}/enrich` | Explicitly trigger deterministic event enrichment |
 
 ---
 
-## Running Locally & Testing
+## Migration & Execution Guide
 
-### 1. Environment & Dependencies
+### 1. Database Migrations (Alembic)
+To apply database schema migrations (including `002_intelligence_foundation`):
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+alembic upgrade head
 ```
 
-### 2. Testing Without a Live Wazuh Server
-All unit and integration tests run offline using mocked Wazuh API responses:
+### 2. Automated Test Suite
+
+#### Offline Pytest Suite (Default CI mode)
+Runs unit tests offline without requiring a live Wazuh server:
 ```powershell
 pytest -v
 ```
 
-### 3. Connecting to a Live Wazuh Deployment
-To connect SPECTRA to a real Wazuh Manager:
-1. Update `.env` with your Wazuh Manager API URL, username, and password.
-2. If using self-signed certificates in local testing, set `WAZUH_VERIFY_SSL=false`.
-3. Start FastAPI server:
-   ```powershell
-   uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-4. Query `/api/v1/wazuh/health` to verify live connectivity.
+#### Optional Live Integration Test Suite
+To run tests against the live Wazuh 4.14.7 server:
+```cmd
+set WAZUH_INTEGRATION_TESTS=true&& pytest -v tests/test_wazuh_live_integration.py
+```

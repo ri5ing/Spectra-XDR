@@ -104,36 +104,30 @@ def test_wazuh_alerts_endpoint():
 
 
 def test_normalized_events_endpoint():
-    """Verify GET /api/v1/events normalizes Wazuh alerts into NormalizedEvents."""
-    mock_wazuh_client = MagicMock()
-    mock_wazuh_client.get_alerts = AsyncMock(return_value={
-        "data": {
-            "total_affected_items": 1,
-            "affected_items": [
-                {
-                    "id": "alert-777",
-                    "timestamp": "2026-08-17T15:00:00Z",
-                    "agent": {"id": "005", "name": "web-server"},
-                    "rule": {"id": 1001, "level": 7, "description": "Web attack detected"}
-                }
-            ]
-        }
-    })
+    """Verify GET /api/v1/events retrieves persisted NormalizedEvents from database."""
+    # First ingest a test event
+    event_payload = {
+        "event_id": "alert-777",
+        "timestamp": "2026-08-17T15:00:00Z",
+        "source": "wazuh",
+        "agent_id": "005",
+        "agent_name": "web-server",
+        "rule_id": "1001",
+        "rule_level": 7,
+        "rule_description": "Web attack detected",
+        "raw_event": {"sample": "data"}
+    }
+    client.post("/api/v1/events", json=event_payload)
 
-    app.dependency_overrides[get_wazuh_client] = lambda: mock_wazuh_client
-
-    try:
-        response = client.get("/api/v1/events?limit=10&offset=0")
-        assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        assert len(data) == 1
-        event = data[0]
-        assert event["event_id"] == "alert-777"
-        assert event["source"] == "wazuh"
-        assert event["agent_name"] == "web-server"
-        assert event["rule_id"] == "1001"
-        assert event["rule_level"] == 7
-        assert "raw_event" in event
-    finally:
-        app.dependency_overrides.clear()
+    response = client.get("/api/v1/events?limit=10&offset=0")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    event = data[0]
+    assert event["event_id"] == "alert-777"
+    assert event["source"] == "wazuh"
+    assert event["agent_name"] == "web-server"
+    assert event["rule_id"] == "1001"
+    assert event["rule_level"] == 7
+    assert "raw_event" in event

@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: spectra-xdr-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=spectra_xdr
+      - POSTGRES_USER=spectra
+      - POSTGRES_PASSWORD=spectra
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spectra -d spectra_xdr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -14,9 +32,16 @@ services:
       - DEBUG=False
       - HOST=0.0.0.0
       - PORT=8000
+      - DATABASE_URL=postgresql+psycopg://spectra:spectra@postgres:5432/spectra_xdr
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
+
+volumes:
+  postgres_data:

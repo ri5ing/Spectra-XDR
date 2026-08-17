@@ -1,44 +1,56 @@
-"""Normalized Events Endpoint for SPECTRA-XDR."""
+"""Normalized Security Telemetry Events API Endpoints."""
 
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.api.routes.wazuh import get_wazuh_client
-from backend.integrations.wazuh.client import WazuhClient
-from backend.integrations.wazuh.exceptions import WazuhConnectionError, WazuhError, WazuhTimeoutError
+from database.session import get_db_session
+from backend.services.event_service import EventService
+from backend.api.schemas.event import EventResponse
 from intelligence.normalization.models import NormalizedEvent
-from intelligence.normalization.wazuh import normalize_wazuh_alert
 
 router = APIRouter()
 
 
-@router.get("", response_model=List[NormalizedEvent], summary="Retrieve Normalized Security Events")
-async def get_normalized_events(
+@router.get("", response_model=List[EventResponse], summary="Retrieve Persisted Normalized Events")
+async def get_persisted_events(
     limit: int = Query(default=10, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    client: WazuhClient = Depends(get_wazuh_client)
+    agent_id: Optional[str] = Query(default=None),
+    rule_id: Optional[str] = Query(default=None),
+    source: Optional[str] = Query(default=None),
+    session: AsyncSession = Depends(get_db_session)
 ):
-    """Fetches Wazuh alerts and transforms them into standardized SPECTRA NormalizedEvents."""
+    """Retrieves persisted security telemetry events from PostgreSQL database."""
     try:
-        raw_response = await client.get_alerts(limit=limit, offset=offset)
-        
-        # Extract alert items safely from response container
-        items = []
-        if isinstance(raw_response, dict):
-            items = raw_response.get("data", {}).get("affected_items", [])
-            if not items and isinstance(raw_response.get("affected_items"), list):
-                items = raw_response["affected_items"]
-        
-        normalized_events = [normalize_wazuh_alert(item) for item in items if isinstance(item, dict)]
-        return normalized_events
-
-    except (WazuhConnectionError, WazuhTimeoutError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Telemetry provider unavailable: {e.message}"
+        service = EventService(session)
+        events = await service.list_persisted_events(
+            limit=limit,
+            offset=offset,
+            agent_id=agent_id,
+            rule_id=rule_id,
+            source=source,
         )
-    except WazuhError as e:
+        return events
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Event normalization failed: {e.message}"
+            detail=f"Failed to query events database: {str(e)}"
+        )
+
+
+@router.post("", response_model=EventResponse, status_code=status.HTTP_201_CREATED, summary="Ingest Normalized Event")
+async def ingest_event(
+    event: NormalizedEvent,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Ingests and persists a NormalizedEvent payload into PostgreSQL."""
+    try:
+        service = EventService(session)
+        persisted = await service.ingest_normalized_event(event)
+        return persisted
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to ingest event into database: {str(e)}"
         )

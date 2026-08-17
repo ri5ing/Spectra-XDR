@@ -131,6 +131,13 @@ class WazuhClient:
         return await self._request("GET", "/agents", params=params)
 
     async def get_alerts(self, limit: int = 10, offset: int = 0) -> Dict[str, Any]:
-        """Retrieves read-only alert log records from Wazuh."""
+        """Retrieves read-only alert/log records from Wazuh (supporting /alerts and /manager/logs)."""
         params = {"limit": limit, "offset": offset}
-        return await self._request("GET", "/alerts", params=params)
+        try:
+            return await self._request("GET", "/alerts", params=params)
+        except WazuhResponseError as e:
+            if getattr(e, "status_code", None) == 404:
+                logger.info("Wazuh /alerts endpoint returned 404, falling back to /manager/logs")
+                return await self._request("GET", "/manager/logs", params=params)
+            raise
+

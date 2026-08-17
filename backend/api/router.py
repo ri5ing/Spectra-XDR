@@ -1,13 +1,25 @@
 """Main API Router aggregator for SPECTRA-XDR."""
 
 from fastapi import APIRouter
-from backend.api.routes import health, wazuh, events
+from backend.api.routes import health, wazuh, events, database, incidents, intelligence
 
 api_router = APIRouter()
 
 # Core Root & App Health Endpoints
 api_router.include_router(health.router, tags=["Health & Status"])
 
-# Phase 1 Wazuh & Normalization Endpoints under /api/v1
+# Database Health Endpoint under /api/v1/database
+api_router.include_router(database.router, prefix="/api/v1/database", tags=["Database Infrastructure"])
+
+# Phase 1 Wazuh Integration Endpoints under /api/v1/wazuh
 api_router.include_router(wazuh.router, prefix="/api/v1/wazuh", tags=["Wazuh Integration"])
-api_router.include_router(events.router, prefix="/api/v1/events", tags=["Normalized Telemetry Events"])
+
+# Phase 2 Persisted Security Events Endpoints under /api/v1/events
+api_router.include_router(events.router, prefix="/api/v1/events", tags=["Security Events"])
+
+# Phase 2 Security Incident Management Endpoints under /api/v1/incidents
+api_router.include_router(incidents.router, prefix="/api/v1/incidents", tags=["Incidents"])
+
+# Phase 3 Deterministic Security Intelligence Endpoints under /api/v1/intelligence
+api_router.include_router(intelligence.router, prefix="/api/v1", tags=["Deterministic Security Intelligence"])
+
