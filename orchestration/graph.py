@@ -18,25 +18,33 @@ class SwarmOrchestrator:
         self.supervisor = supervisor or SwarmSupervisor()
 
     async def run_swarm(self, state: SwarmState) -> SwarmState:
-        """Run complete multi-agent reasoning flow over the SwarmState."""
-        logger.info(f"Initiating Swarm Orchestration for Incident {state.incident_human_id}")
+        """Run 3-phase multi-agent swarm flow with parallel reasoning execution."""
+        import asyncio
+        logger.info(f"Initiating 3-Phase Parallel Swarm Orchestration for Incident {state.incident_human_id}")
 
-        # 1. Detection Agent Node
+        # === PHASE 1: ALERT INGESTION & DETECTION TRIAGE ===
         state = await self.supervisor.step_agent(AgentRole.DETECTION_AGENT, state)
 
-        # 2. MITRE Agent Node
-        state = await self.supervisor.step_agent(AgentRole.MITRE_AGENT, state)
+        # === PHASE 2: PARALLEL SWARM INTELLIGENCE (MITRE, Threat Intel, Investigation, Correlation) ===
+        # Run all 4 analytical agents simultaneously in parallel
+        results = await asyncio.gather(
+            self.supervisor.detection_agent.router.gemini.check_connectivity_and_health() if False else self.supervisor.mitre_agent.analyze(state),
+            self.supervisor.threat_intel_agent.analyze(state),
+            self.supervisor.investigation_agent.analyze(state),
+            self.supervisor.correlation_agent.analyze(state),
+            return_exceptions=True
+        )
 
-        # 3. Threat Intel Agent Node
-        state = await self.supervisor.step_agent(AgentRole.THREAT_INTEL_AGENT, state)
+        for thought in results:
+            if thought and not isinstance(thought, Exception):
+                state.thoughts.append(thought)
+                if thought.agent_role not in state.completed_agents:
+                    state.completed_agents.append(thought.agent_role)
+            elif isinstance(thought, Exception):
+                logger.error(f"Error in parallel swarm agent execution: {thought}")
 
-        # 4. Correlation Agent Node
-        state = await self.supervisor.step_agent(AgentRole.CORRELATION_AGENT, state)
-
-        # 5. Investigation Agent Node
-        state = await self.supervisor.step_agent(AgentRole.INVESTIGATION_AGENT, state)
-
-        # 6. Risk Engine Evaluation (Deterministic Core)
+        # === PHASE 3: RISK SYNTHESIS & SOAR CONTAINMENT CONVERGENCE ===
+        # 1. Deterministic Risk Engine Evaluation
         risk_result = calculate_incident_risk(
             event_data=state.event_data,
             mitre_mappings=state.mitre_mappings,
@@ -47,10 +55,10 @@ class SwarmOrchestrator:
         state.risk_score = risk_result["risk_score"]
         state.risk_level = risk_result["risk_level"]
 
-        # 7. Response Agent Node
+        # 2. Response Agent (SOAR Containment Playbook)
         state = await self.supervisor.step_agent(AgentRole.RESPONSE_AGENT, state)
 
-        # 8. Policy Engine Evaluation (Deterministic Safety Boundary)
+        # 3. Policy Engine Evaluation (Deterministic Safety Boundary)
         policy_result = evaluate_response_policy(
             risk_score=state.risk_score,
             recommended_actions=state.recommended_actions
@@ -58,8 +66,8 @@ class SwarmOrchestrator:
         state.human_approval_required = policy_result["human_approval_required"]
         state.human_approval_status = policy_result["approval_status"]
 
-        # 9. Reporting / Supervisor Summary Node
+        # 4. Supervisor Summary Node
         state = await self.supervisor.step_agent(AgentRole.SUPERVISOR, state)
 
-        logger.info(f"Completed Swarm Orchestration for Incident {state.incident_human_id}. Final Risk: {state.risk_score} ({state.risk_level})")
+        logger.info(f"Completed 3-Phase Swarm Orchestration for Incident {state.incident_human_id}. Final Risk: {state.risk_score} ({state.risk_level})")
         return state

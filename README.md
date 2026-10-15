@@ -39,7 +39,7 @@ chmod +x start.sh && ./start.sh
 
 | Component | URL / Endpoint | Credentials / Details |
 | :--- | :--- | :--- |
-| **Wazuh Web Dashboard** | `https://localhost:8443` | User: `admin` / Password: `admin` |
+| **Wazuh Web Dashboard** | `http://localhost:8443` | User: `admin` / Password: `admin` |
 | **SPECTRA-XDR Analyst Console** | `http://localhost:8000` | Real-time SOC Console Dashboard |
 | **SPECTRA-XDR API Documentation** | `http://localhost:8000/docs` | Interactive OpenAPI Swagger UI |
 | **Wazuh REST API Engine** | `https://localhost:55000` | JWT Authenticated Management API |

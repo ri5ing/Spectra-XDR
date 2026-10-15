@@ -7,6 +7,8 @@ api_router = APIRouter()
 
 # Core Root & App Health Endpoints
 api_router.include_router(health.router, tags=["Health & Status"])
+api_router.include_router(health.router, prefix="/api/v1", tags=["Health & Status"])
+
 
 # Database Health Endpoint under /api/v1/database
 api_router.include_router(database.router, prefix="/api/v1/database", tags=["Database Infrastructure"])

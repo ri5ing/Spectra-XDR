@@ -15,20 +15,20 @@ def calculate_incident_risk(
 ) -> Dict[str, Any]:
     """Calculate deterministic multi-factor risk score (0 - 100)."""
 
-    # 1. Base Alert Severity Weight (0 - 30 points)
+    # 1. Base Alert Severity Weight (0 - 45 points)
     raw_severity = str(event_data.get("severity", "medium")).lower()
     if raw_severity in ["critical", "12", "13", "14", "15"]:
-        severity_score = 30.0
+        severity_score = 45.0
     elif raw_severity in ["high", "8", "9", "10", "11"]:
-        severity_score = 22.5
+        severity_score = 32.5
     elif raw_severity in ["medium", "5", "6", "7"]:
-        severity_score = 15.0
+        severity_score = 18.0
     else:
         severity_score = 7.5
 
     # 2. MITRE ATT&CK Technique Risk Weight (0 - 25 points)
     mitre_count = len(mitre_mappings)
-    if mitre_count >= 4:
+    if mitre_count >= 3:
         mitre_score = 25.0
     elif mitre_count >= 2:
         mitre_score = 18.0
@@ -39,7 +39,7 @@ def calculate_incident_risk(
 
     # 3. IOC Reputation Score Weight (0 - 15 points)
     ioc_count = len(extracted_iocs)
-    if ioc_count >= 5:
+    if ioc_count >= 4:
         ioc_score = 15.0
     elif ioc_count >= 2:
         ioc_score = 10.0
@@ -50,7 +50,7 @@ def calculate_incident_risk(
 
     # 4. Attack Chain & Correlation Depth Weight (0 - 15 points)
     chain_depth = len(attack_chain)
-    if chain_depth >= 4:
+    if chain_depth >= 3:
         chain_score = 15.0
     elif chain_depth >= 2:
         chain_score = 10.0
@@ -69,11 +69,12 @@ def calculate_incident_risk(
     total_score = severity_score + mitre_score + ioc_score + chain_score + asset_score
     total_score = min(100.0, max(0.0, total_score))
 
-    if total_score >= 80.0:
+    # Accurate threat level boundaries
+    if raw_severity == "critical" or total_score >= 70.0:
         risk_level = "CRITICAL"
-    elif total_score >= 60.0:
+    elif raw_severity == "high" or total_score >= 50.0:
         risk_level = "HIGH"
-    elif total_score >= 30.0:
+    elif raw_severity == "medium" or total_score >= 25.0:
         risk_level = "MEDIUM"
     else:
         risk_level = "LOW"

@@ -137,7 +137,12 @@ class WazuhClient:
             return await self._request("GET", "/alerts", params=params)
         except WazuhResponseError as e:
             if getattr(e, "status_code", None) == 404:
-                logger.info("Wazuh /alerts endpoint returned 404, falling back to /manager/logs")
                 return await self._request("GET", "/manager/logs", params=params)
             raise
+
+    async def get_agent_syscheck(self, agent_id: str = "002", limit: int = 50) -> Dict[str, Any]:
+        """Retrieves File & Registry Integrity Monitoring telemetry from specific agent."""
+        params = {"limit": limit}
+        return await self._request("GET", f"/syscheck/{agent_id}", params=params)
+
 

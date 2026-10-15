@@ -4,7 +4,7 @@ hosts:
       port: 55000
       username: wazuh
       password: wazuh
-      run_as: true
+      run_as: false
 
 admin: true
 logs.level: info

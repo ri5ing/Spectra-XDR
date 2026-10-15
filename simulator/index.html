@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SPECTRA // Live Adversary Attack Simulation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #111827;
+      --card-border: #1f2937;
+      --primary: #ef4444;
+      --accent-blue: #3b82f6;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 12px 16px;
+    }
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+      color: white;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: none;
+    }
+    @media (min-width: 640px) {
+      .brand-subtitle { display: block; }
+      header { padding: 14px 24px; }
+      .brand-title { font-size: 18px; }
+    }
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #34d399;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      background-color: #34d399;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #34d399;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    main {
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+    @media (min-width: 900px) {
+      main {
+        grid-template-columns: 360px 1fr;
+        padding: 24px;
+        gap: 24px;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 12px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    /* Target IP Picker */
+    .ip-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .ip-item {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+    .ip-item:hover {
+      border-color: var(--accent-blue);
+      background: #243247;
+    }
+    .ip-item.active {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.12);
+    }
+    .ip-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .ip-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .ip-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      background: #0f172a;
+      padding: 3px 6px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      color: #60a5fa;
+    }
+
+    /* Manual IP Input */
+    .input-group {
+      display: flex;
+      gap: 8px;
+    }
+    input[type="text"] {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      flex: 1;
+      outline: none;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent-blue);
+    }
+
+    /* Attack Cards */
+    .attack-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .attack-item {
+      background: #182234;
+      border: 1px solid #2d3748;
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .attack-item:hover {
+      border-color: #4a5568;
+      background: #1f2b42;
+    }
+    .attack-item.active {
+      border-color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);
+    }
+    .attack-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .attack-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .attack-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .attack-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .tag-technique {
+      background: #1e3a8a;
+      color: #93c5fd;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tag-high {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .tag-medium {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .tag-critical {
+      background: rgba(220, 38, 38, 0.3);
+      color: #fecaca;
+      border: 1px solid #ef4444;
+    }
+
+    /* Action Button */
+    .btn-launch {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.35);
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .btn-launch:hover {
+      background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+      transform: translateY(-1px);
+    }
+    .btn-launch:active {
+      transform: translateY(1px);
+    }
+    .btn-launch:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Terminal Output */
+    .terminal-container {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #10b981;
+      min-height: 180px;
+      max-height: 380px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .term-title {
+      font-size: 11px;
+      color: #64748b;
+      margin-left: 6px;
+    }
+
+    /* Mobile Floating Bar */
+    .mobile-bar {
+      position: sticky;
+      bottom: 0;
+      background: rgba(17, 24, 39, 0.95);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--card-border);
+      padding: 12px 16px;
+      z-index: 40;
+    }
+    @media (min-width: 900px) {
+      .mobile-bar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="header-content">
+      <div class="brand">
+        <span class="brand-badge">REDTEAM</span>
+        <div>
+          <h1 class="brand-title">Spectra Attack Simulator</h1>
+          <p class="brand-subtitle">Adversary Threat Emulation & Real-time EDR Telemetry Trigger</p>
+        </div>
+      </div>
+      <div class="status-pill">
+        <div class="pulse-dot"></div>
+        <span>ENGINE READY</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main>
+    <!-- Left Column: Target IP Selection & Controls -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Target Selector Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🎯 1. Choose Target Endpoint</span>
+          <button onclick="refreshNetworkIPs()" style="background: none; border: none; color: #60a5fa; cursor: pointer; font-size: 11px; font-weight: 600;">Refresh IPs</button>
+        </div>
+
+        <div>
+          <span class="section-label">Discovered Network IPs:</span>
+          <div id="ipList" class="ip-grid">
+            <div style="color: #64748b; font-size: 12px; padding: 10px;">Scanning local network...</div>
+          </div>
+        </div>
+
+        <div>
+          <span class="section-label">Selected Target IP:</span>
+          <div class="input-group">
+            <input type="text" id="targetIpInput" value="127.0.0.1" placeholder="e.g. 192.168.0.104">
+          </div>
+        </div>
+      </div>
+
+      <!-- Launch Action (Desktop Visible) -->
+      <div class="card" style="display: none;" id="desktopLaunchCard">
+        <button id="btnLaunchDesk" class="btn-launch" onclick="executeAttack()">
+          ⚡ TRIGGER ATTACK SIMULATION
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Attacks & Live Terminal -->
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Attack Scenarios Card -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⚔️ 2. Select Attack Scenario</span>
+          <span id="selectedCountBadge" style="font-size: 11px; color: #94a3b8; font-weight: 600;">1 Selected</span>
+        </div>
+
+        <div id="attackList" class="attack-list">
+          <div style="color: #64748b; font-size: 12px; padding: 10px;">Loading attack scenarios...</div>
+        </div>
+      </div>
+
+      <!-- Live Execution Log Terminal -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💻 Execution Terminal & Telemetry</span>
+          <span id="execStatusPill" style="font-size: 11px; font-family: monospace; color: #94a3b8;">IDLE</span>
+        </div>
+        
+        <div class="terminal-container">
+          <div class="terminal-bar">
+            <div class="term-dot" style="background: #ef4444;"></div>
+            <div class="term-dot" style="background: #f59e0b;"></div>
+            <div class="term-dot" style="background: #10b981;"></div>
+            <span class="term-title">spectra-redteam@terminal:~#</span>
+          </div>
+          <div id="terminalLog">[READY] Select an attack scenario and destination IP, then click Trigger.
+The execution will produce immediate endpoint events harvested by Wazuh and Spectra-XDR.</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Mobile Sticky Launch Bar -->
+  <div class="mobile-bar">
+    <button id="btnLaunchMob" class="btn-launch" onclick="executeAttack()">
+      ⚡ TRIGGER ATTACK SIMULATION
+    </button>
+  </div>
+
+  <script>
+    let networkIps = [];
+    let scenarios = [];
+    let selectedScenarioId = "T1059.001";
+    let isExecuting = false;
+
+    if (window.innerWidth >= 900) {
+      document.getElementById('desktopLaunchCard').style.display = 'block';
+    }
+
+    async function refreshNetworkIPs() {
+      try {
+        const res = await fetch('/api/network/ips');
+        const data = await res.json();
+        networkIps = data.ips || [];
+        renderIPs();
+      } catch (err) {
+        console.error("Failed to load IPs:", err);
+      }
+    }
+
+    function renderIPs() {
+      const container = document.getElementById('ipList');
+      if (!networkIps.length) {
+        container.innerHTML = '<div style="color: #64748b; font-size: 12px; padding: 10px;">No IPs discovered.</div>';
+        return;
+      }
+
+      const currentTarget = document.getElementById('targetIpInput').value.trim();
+      container.innerHTML = networkIps.map(item => `
+        <div class="ip-item ${item.ip === currentTarget ? 'active' : ''}" onclick="selectIP('${item.ip}')">
+          <div>
+            <div class="ip-name">${item.name}</div>
+            <div class="ip-meta">${item.type} &bull; <span style="color: #34d399;">${item.status}</span></div>
+          </div>
+          <div class="ip-badge">${item.ip}</div>
+        </div>
+      `).join('');
+    }
+
+    function selectIP(ip) {
+      document.getElementById('targetIpInput').value = ip;
+      renderIPs();
+    }
+
+    async function loadScenarios() {
+      try {
+        const res = await fetch('/api/scenarios');
+        const data = await res.json();
+        scenarios = data.scenarios || [];
+        renderScenarios();
+      } catch (err) {
+        console.error("Failed to load scenarios:", err);
+      }
+    }
+
+    function renderScenarios() {
+      const container = document.getElementById('attackList');
+      if (!scenarios.length) {
+        container.innerHTML = '<div style="color: #64748b; font-size: 12px; padding: 10px;">No scenarios found.</div>';
+        return;
+      }
+
+      container.innerHTML = scenarios.map(sc => {
+        const isSelected = sc.id === selectedScenarioId;
+        const sevClass = sc.severity === 'CRITICAL' ? 'tag-critical' : sc.severity === 'HIGH' ? 'tag-high' : 'tag-medium';
+        return `
+          <div class="attack-item ${isSelected ? 'active' : ''}" onclick="selectScenario('${sc.id}')">
+            <div class="attack-header">
+              <span class="attack-title">${sc.name}</span>
+              <span class="tag ${sevClass}">${sc.severity}</span>
+            </div>
+            <p class="attack-desc">${sc.description}</p>
+            <div class="attack-tags">
+              <span class="tag tag-technique">${sc.mitre_technique}</span>
+              <span class="tag" style="background: #1f2937; color: #9ca3af;">${sc.tactic}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectScenario(id) {
+      selectedScenarioId = id;
+      renderScenarios();
+    }
+
+    async function executeAttack() {
+      if (isExecuting) return;
+      const targetIp = document.getElementById('targetIpInput').value.trim();
+      if (!targetIp) {
+        alert("Please enter or select a Target IP!");
+        return;
+      }
+
+      isExecuting = true;
+      const btnDesk = document.getElementById('btnLaunchDesk');
+      const btnMob = document.getElementById('btnLaunchMob');
+      const term = document.getElementById('terminalLog');
+      const statusPill = document.getElementById('execStatusPill');
+
+      btnDesk.disabled = true;
+      btnMob.disabled = true;
+      btnDesk.innerText = "⏳ SIMULATING ADVERSARY ATTACK...";
+      btnMob.innerText = "⏳ SIMULATING ADVERSARY ATTACK...";
+      statusPill.innerText = "RUNNING";
+      statusPill.style.color = "#ef4444";
+
+      term.innerText = `[*] INITIATING SIMULATION [${selectedScenarioId}]...\n[*] TARGET IP: ${targetIp}\n[*] DISPATCHING PAYLOAD... PLEASE WAIT...\n`;
+
+      try {
+        const res = await fetch('/api/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenario_id: selectedScenarioId,
+            target_ip: targetIp
+          })
+        });
+
+        const data = await res.json();
+        const r = data.result;
+
+        term.innerText = `[SUCCESS] Simulation Finished!\n=======================================================\n` +
+          `Attack Name : ${r.scenario_name}\n` +
+          `MITRE ID    : ${r.scenario_id} (${r.tactic})\n` +
+          `Target IP   : ${r.target_ip}\n` +
+          `Timestamp   : ${r.timestamp}\n` +
+          `Status      : ${r.status}\n` +
+          `Exit Code   : ${r.return_code}\n` +
+          `=======================================================\n\n` +
+          `[COMMAND/TELEMETRY OUTPUT]:\n${r.output}\n\n` +
+          `[*] Note: Real-time alert has been propagated to Wazuh EDR & Spectra-XDR Dashboard.`;
+
+        statusPill.innerText = "SUCCESS";
+        statusPill.style.color = "#34d399";
+      } catch (err) {
+        term.innerText += `\n[ERROR]: ${err.message}`;
+        statusPill.innerText = "FAILED";
+        statusPill.style.color = "#ef4444";
+      } finally {
+        isExecuting = false;
+        btnDesk.disabled = false;
+        btnMob.disabled = false;
+        btnDesk.innerText = "⚡ TRIGGER ATTACK SIMULATION";
+        btnMob.innerText = "⚡ TRIGGER ATTACK SIMULATION";
+      }
+    }
+
+    refreshNetworkIPs();
+    loadScenarios();
+  </script>
+</body>
+</html>

@@ -7,10 +7,12 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.router import api_router
 from backend.config import settings
 from backend.logging_config import setup_logging, get_logger
+from backend.workers.wazuh_sync import wazuh_sync_worker
 
 # Initialize logger
 setup_logging(level="DEBUG" if settings.DEBUG else "INFO")
@@ -21,7 +23,11 @@ logger = get_logger("spectra.main")
 async def lifespan(app: FastAPI):
     """Application lifecycle context manager."""
     logger.info(f"Starting {settings.APP_NAME} in environment: {settings.APP_ENV}")
+    # Start background telemetry sync
+    await wazuh_sync_worker.start()
     yield
+    # Stop background sync
+    await wazuh_sync_worker.stop()
     logger.info(f"Shutting down {settings.APP_NAME}")
 
 
@@ -34,8 +40,14 @@ app = FastAPI(
     redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-# Register API Router
-app.include_router(api_router)
+# Enable CORS for Frontend Next.js console
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Static Files Mounting for Frontend Console
 frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
@@ -45,7 +57,16 @@ if os.path.exists(frontend_dir):
     @app.get("/", include_in_schema=False)
     @app.get("/console", include_in_schema=False)
     async def serve_console():
-        return FileResponse(os.path.join(frontend_dir, "index.html"))
+        return JSONResponse({
+            "app": settings.APP_NAME,
+            "status": "running",
+            "version": "0.1.0",
+            "ui_console": "http://localhost:3000",
+            "docs": "/docs"
+        })
+
+# Register API Router
+app.include_router(api_router)
 
 
 # Global Exception Handlers

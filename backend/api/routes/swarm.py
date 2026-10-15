@@ -44,17 +44,17 @@ async def trigger_swarm_analysis(
         "severity": incident.severity or "medium",
         "agent_name": primary_event.agent_name if primary_event else "Local Endpoint",
         "agent_id": primary_event.agent_id if primary_event else "001",
-        "full_log": primary_event.full_log if primary_event else ""
+        "full_log": str(primary_event.raw_event) if primary_event and hasattr(primary_event, 'raw_event') and primary_event.raw_event else ""
     }
 
     # 3. Construct SwarmState
     initial_state = SwarmState(
         incident_id=incident.id,
-        incident_human_id=incident.human_id,
+        incident_human_id=incident.incident_id,
         event_data=event_dict,
-        mitre_mappings=[{"technique_id": m.technique_id, "technique_name": m.technique_name, "tactic": m.tactic} for m in (primary_event.mitre_mappings if primary_event else [])],
-        extracted_iocs=[{"ioc_type": i.ioc_type, "normalized_value": i.normalized_value} for i in (primary_event.extracted_iocs if primary_event else [])],
-        detection_matches=[{"rule_id": d.rule_id} for d in incident.detections]
+        mitre_mappings=[{"technique_id": m.technique_id, "technique_name": m.technique_name, "tactic": m.tactic} for m in (getattr(primary_event, 'mitre_mappings', []) or [])],
+        extracted_iocs=[{"ioc_type": i.ioc_type, "normalized_value": i.normalized_value} for i in (getattr(primary_event, 'extracted_iocs', []) or [])],
+        detection_matches=[{"rule_id": d.rule_id} for d in getattr(incident, 'detections', []) or []]
     )
 
     # 4. Run Swarm Orchestrator

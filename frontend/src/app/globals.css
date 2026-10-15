@@ -1,0 +1,148 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-display: 'Space Grotesk', 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    
+    /* Swiss Modernism 2.0 Color Palette */
+    --swiss-bg: #f8fafc;
+    --swiss-surface: #ffffff;
+    --swiss-ink: #09090b;
+    --swiss-muted: #52525b;
+    --swiss-border: #e4e4e7;
+    --swiss-border-dark: #18181b;
+    --swiss-red: #ef4444;
+    --swiss-signal: #0ea5e9;
+    --swiss-signal-dark: #0284c7;
+    --swiss-emerald: #10b981;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--swiss-ink);
+    background-color: var(--swiss-bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    letter-spacing: -0.025em;
+    font-weight: 800;
+  }
+
+  /* Universal high-readability table & monospace overrides */
+  table {
+    font-size: 13px !important;
+  }
+  
+  th {
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+  }
+  
+  td {
+    font-size: 13px !important;
+  }
+
+  input, select, textarea {
+    font-size: 13.5px !important;
+  }
+}
+
+/* Swiss Modernism Grid Background */
+.swiss-grid-pattern {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(228, 228, 231, 0.45) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(228, 228, 231, 0.45) 1px, transparent 1px);
+}
+
+/* Swiss Modernism 2.0 Clean Architectural Cards */
+.swiss-card {
+  background-color: #ffffff;
+  border: 2px solid #18181b;
+  border-radius: 0px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.swiss-card:hover {
+  border-color: #09090b;
+}
+
+.swiss-card-dark {
+  background-color: #09090b;
+  border: 2px solid #27272a;
+  color: #fafafa;
+  border-radius: 0px;
+}
+
+/* Swiss Modernism Precision Badge */
+.swiss-tag {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 0px;
+  border: 1px solid transparent;
+}
+
+/* Swiss Structural Border Separator */
+.swiss-hairline {
+  border-color: #18181b;
+}
+
+/* Precision Swiss Inputs */
+.swiss-input {
+  background-color: #ffffff;
+  border: 2px solid #18181b;
+  border-radius: 0px;
+  color: #09090b;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  transition: all 0.15s ease;
+}
+
+.swiss-input:focus {
+  border-color: #ef4444;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+/* Monospace Data Stream Table styling */
+.swiss-table-header {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #09090b;
+  background-color: #f4f4f5;
+  border-bottom: 2px solid #18181b;
+}
+
+/* Swiss Modern Minimal Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #f4f4f5;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}

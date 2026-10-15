@@ -323,3 +323,83 @@ async def get_incident_audit_log(
     if not incident:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Incident '{incident_id}' not found")
     return await service.audit_repo.list_audit_logs_for_incident(incident.id)
+
+
+@router.get("/{incident_id}/report", summary="Generate Forensic Incident Report")
+async def get_incident_forensic_report(
+    incident_id: str,
+    session: AsyncSession = Depends(get_db_session)
+):
+    """Generates an executive-ready forensic incident report with multi-agent findings, risk score, and SOAR mitigation."""
+    service = IncidentInvestigationService(session)
+    incident = await service.get_incident(incident_id)
+    if not incident:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Incident '{incident_id}' not found")
+
+    events = await service.get_incident_events(incident.id, limit=20)
+    detections = await service.get_incident_detections(incident.id)
+    notes = await service.note_repo.list_notes_for_incident(incident.id)
+    audit_trail = await service.audit_repo.list_audit_logs_for_incident(incident.id)
+
+    # Risk assessment
+    from database.repositories.risk_repository import RiskRepository
+    risk_repo = RiskRepository(session)
+    assessment = await risk_repo.get_latest_risk_assessment(incident.id)
+
+    # Response actions
+    from database.repositories.response_repository import ResponseRepository
+    resp_repo = ResponseRepository(session)
+    actions = await resp_repo.list_actions_for_incident(incident.id)
+
+    # Swarm thoughts
+    from database.repositories.swarm_repository import SwarmRepository
+    swarm_repo = SwarmRepository(session)
+    swarm_run = await swarm_repo.get_latest_swarm_run(incident.id)
+
+    primary_event = events[0] if events else None
+
+    return {
+        "report_id": f"REP-{incident.incident_id or incident.id}",
+        "incident_id": incident.incident_id,
+        "title": incident.title,
+        "description": incident.description,
+        "severity": incident.severity,
+        "status": incident.status,
+        "first_seen": incident.first_seen.isoformat() if incident.first_seen else None,
+        "last_seen": incident.last_seen.isoformat() if incident.last_seen else None,
+        "risk_assessment": {
+            "score": assessment.risk_score if assessment else 45.0,
+            "level": assessment.risk_level if assessment else incident.severity.upper(),
+            "breakdown": assessment.score_breakdown if assessment else {}
+        },
+        "target_endpoint": {
+            "name": getattr(primary_event, 'agent_name', 'Lazasus'),
+            "id": getattr(primary_event, 'agent_id', '002'),
+            "ip": getattr(primary_event, 'agent_ip', '127.0.0.1')
+        },
+        "actions_taken": [
+            {
+                "action_type": a.action_type,
+                "target": a.target,
+                "status": a.approval_status,
+                "approved_by": a.approved_by,
+                "execution_status": a.execution_status
+            }
+            for a in actions
+        ],
+        "swarm_intelligence": {
+            "attack_chain": swarm_run.attack_chain if swarm_run else ["Initial Access", "Execution"],
+            "agent_findings": [
+                {
+                    "agent": t.agent_role,
+                    "model": t.model_used,
+                    "summary": t.summary,
+                    "confidence": t.confidence
+                }
+                for t in (swarm_run.thoughts if swarm_run else [])
+            ]
+        },
+        "event_count": len(events),
+        "notes": [{"author": n.author, "content": n.content, "created_at": n.created_at.isoformat()} for n in notes],
+        "audit_trail_count": len(audit_trail)
+    }

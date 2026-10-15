@@ -32,12 +32,13 @@ services:
       - "1514:1514/tcp"
       - "1515:1515/tcp"
       - "514:514/udp"
-      - "55000:55000/tcp"
+      - "56000:55000/tcp"
     environment:
       - INDEXER_URL=https://wazuh.indexer:9200
       - WAZUH_CLUSTER_ENABLED=false
     volumes:
       - wazuh_manager_data:/var/ossec/data
+      - wazuh_manager_logs:/var/ossec/logs
       - ./docker/wazuh/ossec.conf:/var/ossec/etc/ossec.conf:ro
     depends_on:
       wazuh.indexer:
@@ -112,6 +113,8 @@ services:
     container_name: spectra-xdr-backend
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       - APP_NAME=SPECTRA-XDR
       - APP_ENV=production
@@ -127,6 +130,9 @@ services:
       - WAZUH_USERNAME=wazuh
       - WAZUH_PASSWORD=wazuh
       - WAZUH_VERIFY_SSL=false
+    volumes:
+      - wazuh_manager_data:/var/ossec/data:ro
+      - wazuh_manager_logs:/var/ossec/logs:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -142,5 +148,6 @@ services:
 volumes:
   wazuh_indexer_data:
   wazuh_manager_data:
+  wazuh_manager_logs:
   postgres_data:
   ollama_data:

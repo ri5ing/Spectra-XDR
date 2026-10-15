@@ -43,6 +43,12 @@ class Incident(Base):
         String(50), default="medium", index=True, nullable=False
     )
 
+    @property
+    def human_id(self) -> str:
+        """Alias for incident_id."""
+        return self.incident_id
+
+
     first_seen: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

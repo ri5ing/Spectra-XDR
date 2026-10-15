@@ -7,6 +7,7 @@ router = APIRouter()
 
 
 @router.get("/", summary="Root Endpoint")
+@router.get("/status", summary="Operational Status Endpoint")
 async def root():
     """Returns application name and operational status."""
     return {

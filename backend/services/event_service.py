@@ -17,7 +17,7 @@ class EventService:
         self.repo = EventRepository(session)
 
     async def ingest_normalized_event(self, normalized_event: NormalizedEvent) -> Event:
-        """Parses a NormalizedEvent object and persists it to PostgreSQL."""
+        """Parses a NormalizedEvent object and persists it to PostgreSQL with Autonomous AI Swarm execution."""
         # Convert timestamp string to datetime
         ts = datetime.now(timezone.utc)
         if normalized_event.timestamp:
@@ -41,7 +41,64 @@ class EventService:
             "raw_event": normalized_event.raw_event,
         }
 
-        return await self.repo.create_event(event_data)
+        persisted = await self.repo.create_event(event_data)
+
+        # Autonomous AI Multi-Agent Swarm execution on any alert or rule-based telemetry
+        rule_lvl = normalized_event.rule_level or 0
+        if (normalized_event.event_type == "alert" or rule_lvl >= 3) and not persisted.incident_id:
+            try:
+                from database.repositories.incident_repository import IncidentRepository
+                from database.repositories.swarm_repository import SwarmRepository
+                from agents.models import SwarmState
+                from orchestration.graph import SwarmOrchestrator
+
+                inc_repo = IncidentRepository(self.repo.session)
+                swarm_repo = SwarmRepository(self.repo.session)
+
+                sev = "critical" if rule_lvl >= 10 else "high" if rule_lvl >= 7 else "medium" if rule_lvl >= 4 else "low"
+                inc_title = f"Autonomous Triage: [{normalized_event.agent_name or 'Endpoint'}] {normalized_event.rule_description or 'Security Event'}"
+                inc_desc = (
+                    f"Real-time event processed from {normalized_event.agent_name or 'Agent'} "
+                    f"(Rule ID: {normalized_event.rule_id}, Level: {rule_lvl})."
+                )
+
+                incident = await inc_repo.create_incident({
+                    "title": inc_title[:250],
+                    "description": inc_desc,
+                    "severity": sev,
+                    "status": "investigating"
+                })
+
+                persisted.incident_id = incident.id
+                await self.repo.session.commit()
+                await self.repo.session.refresh(incident)
+
+                state_event = {
+                    "rule_id": normalized_event.rule_id or "UNKNOWN",
+                    "rule_description": normalized_event.rule_description or "Security Alert",
+                    "severity": sev,
+                    "agent_name": normalized_event.agent_name or "Local Endpoint",
+                    "agent_id": normalized_event.agent_id or "002",
+                    "full_log": str(normalized_event.raw_event) if normalized_event.raw_event else ""
+                }
+
+                initial_state = SwarmState(
+                    incident_id=incident.id,
+                    incident_human_id=incident.incident_id,
+                    event_data=state_event,
+                    mitre_mappings=[{"technique_id": normalized_event.rule_id, "technique_name": normalized_event.rule_description, "tactic": "Execution"}] if normalized_event.rule_id and str(normalized_event.rule_id).startswith("T") else [],
+                    extracted_iocs=[{"ioc_type": "ip", "normalized_value": normalized_event.agent_ip}] if normalized_event.agent_ip else [],
+                    detection_matches=[{"rule_id": normalized_event.rule_id}] if normalized_event.rule_id else []
+                )
+
+                orchestrator = SwarmOrchestrator()
+                final_state = await orchestrator.run_swarm(initial_state)
+                await swarm_repo.save_swarm_run(final_state)
+            except Exception as e:
+                import logging
+                logging.getLogger("spectra.auto_swarm").warning(f"Auto swarm trigger skipped: {e}")
+
+        return persisted
 
     async def list_persisted_events(
         self,

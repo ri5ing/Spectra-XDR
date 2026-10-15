@@ -8,10 +8,10 @@ echo.
 echo =========================================================================
 echo  SPECTRA-XDR ^& Wazuh Platform Stack Successfully Launched!
 echo.
-echo  [1] Official Wazuh Dashboard UI:  https://localhost:8443 (User: admin / Password: admin)
+echo  [1] Official Wazuh Dashboard UI:  http://localhost:8443 (User: admin / Password: admin)
 echo  [2] SPECTRA-XDR Analyst Console:  http://localhost:8000
 echo  [3] SPECTRA-XDR OpenAPI Specs:    http://localhost:8000/docs
-echo  [4] Wazuh REST API Engine:        https://localhost:55000
+echo  [4] Wazuh REST API Engine:        https://localhost:56000
 echo  [5] Wazuh Agent Enrollment Port:   1514 / 1515 TCP
 echo  [6] Ollama Local LLM Engine:      http://localhost:11434
 echo =========================================================================
